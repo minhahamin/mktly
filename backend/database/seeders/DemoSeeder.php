@@ -31,8 +31,8 @@ class DemoSeeder extends Seeder
         $workspace = Workspace::create(['name' => 'Mktly 데모 스토어']);
         $user = User::create([
             'name' => '데모 마케터',
-            'email' => 'demo@mktly.test',
-            'password' => 'mktly-demo-1234',
+            'email' => config('mktly.demo.email'),
+            'password' => config('mktly.demo.password'),
         ]);
         $workspace->users()->attach($user->id, ['role' => 'admin']);
 
