@@ -32,7 +32,7 @@ services:
       - "${MAILPIT_SMTP_HOST_PORT:-1125}:1025"
       - "${MAILPIT_UI_HOST_PORT:-8125}:8025"
 
-  api:
+  app:
     build: ./backend
     command: php artisan serve --host=0.0.0.0 --port=8000
     env_file:
@@ -45,7 +45,7 @@ services:
       MAIL_PORT: 1025
       AI_SERVICE_URL: http://ai:8001
     ports:
-      - "${API_HOST_PORT:-8100}:8000"
+      - "${APP_HOST_PORT:-8100}:8000"
     volumes:
       - ./backend:/var/www/html
     depends_on:
@@ -64,19 +64,5 @@ services:
     volumes:
       - ./ai:/app
 
-  web:
-    build: ./frontend
-    command: npm run dev -- --hostname 0.0.0.0 --port 3000
-    environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8100/api/v1}
-    ports:
-      - "${WEB_HOST_PORT:-3100}:3000"
-    volumes:
-      - ./frontend:/app
-      - web_node_modules:/app/node_modules
-    depends_on:
-      - api
-
 volumes:
   mysql_data:
-  web_node_modules:
