@@ -7,7 +7,8 @@
 
 import numpy as np
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import StratifiedKFold, cross_val_score
+from sklearn.metrics import precision_score, recall_score, roc_auc_score, roc_curve
+from sklearn.model_selection import StratifiedKFold, cross_val_predict
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -39,10 +40,13 @@ def predict_churn(request: ChurnRequest) -> ChurnResponse:
         x = df[CHURN_FEATURES].to_numpy(dtype=float)
         y = label.to_numpy()
 
+        # 교차 검증 예측(각 고객을 학습에 쓰지 않은 모델로 예측)으로 성능을 평가한다.
         folds = min(5, positives, negatives)
-        auc = float(
-            np.mean(cross_val_score(model, x, y, cv=StratifiedKFold(folds, shuffle=True, random_state=42), scoring="roc_auc"))
-        )
+        cv = StratifiedKFold(folds, shuffle=True, random_state=42)
+        oof = cross_val_predict(model, x, y, cv=cv, method="predict_proba")[:, 1]
+        auc = float(roc_auc_score(y, oof))
+        fpr, tpr, _ = roc_curve(y, oof)
+        predicted = (oof >= 0.5).astype(int)
 
         model.fit(x, y)
         scores = model.predict_proba(x)[:, 1]
@@ -51,6 +55,9 @@ def predict_churn(request: ChurnRequest) -> ChurnResponse:
             trained_on=len(df),
             positive_rate=round(positives / len(df), 4),
             auc=round(auc, 3),
+            precision=round(float(precision_score(y, predicted, zero_division=0)), 3),
+            recall=round(float(recall_score(y, predicted, zero_division=0)), 3),
+            roc=_downsample(fpr, tpr),
             note=NOTE_MODEL,
         )
 
@@ -58,6 +65,13 @@ def predict_churn(request: ChurnRequest) -> ChurnResponse:
         scores=[ChurnScore(id=int(i), score=round(float(s), 4)) for i, s in zip(df["id"], scores, strict=True)],
         metrics=metrics,
     )
+
+
+def _downsample(fpr: np.ndarray, tpr: np.ndarray, points: int = 21) -> list[list[float]]:
+    """ROC 곡선을 차트용으로 최대 points개 점으로 줄인다(시작점과 끝점은 유지)."""
+    idx = np.unique(np.linspace(0, len(fpr) - 1, num=min(points, len(fpr))).astype(int))
+
+    return [[round(float(fpr[i]), 3), round(float(tpr[i]), 3)] for i in idx]
 
 
 def _heuristic(df, lapse_days: int) -> np.ndarray:

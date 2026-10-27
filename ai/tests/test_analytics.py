@@ -45,6 +45,25 @@ def test_churn_trains_model_and_scores_everyone(client, auth):
     assert "대리 라벨" in data["metrics"]["note"]
 
 
+def test_churn_returns_roc_curve_and_cross_validated_metrics(client, auth):
+    metrics = client.post("/predict/churn", headers=auth, json={"contacts": make_contacts()}).json()["metrics"]
+
+    roc = metrics["roc"]
+    assert 2 <= len(roc) <= 21
+    assert roc[0] == [0.0, 0.0] and roc[-1] == [1.0, 1.0]
+    assert all(0 <= x <= 1 and 0 <= y <= 1 for x, y in roc)
+    assert [p[0] for p in roc] == sorted(p[0] for p in roc)   # 곡선은 x축 방향으로 단조 증가
+    assert 0 < metrics["precision"] <= 1 and 0 < metrics["recall"] <= 1
+    # 곡선이 대각선(무작위)보다 위에 있어야 AUC가 0.5보다 크다.
+    assert sum(y - x for x, y in roc) > 0
+
+
+def test_heuristic_fallback_has_no_evaluation_curve(client, auth):
+    metrics = client.post("/predict/churn", headers=auth, json={"contacts": [{"id": 1, "recency_days": 5}]}).json()["metrics"]
+
+    assert metrics["roc"] is None and metrics["precision"] is None and metrics["recall"] is None
+
+
 def test_churn_scores_inactive_contacts_higher(client, auth):
     contacts = make_contacts()
     res = client.post("/predict/churn", headers=auth, json={"contacts": contacts}).json()

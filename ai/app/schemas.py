@@ -45,6 +45,9 @@ class ChurnMetrics(BaseModel):
     trained_on: int
     positive_rate: float
     auc: float | None = None
+    precision: float | None = Field(default=None, description="임계값 0.5에서의 정밀도(교차 검증)")
+    recall: float | None = Field(default=None, description="임계값 0.5에서의 재현율(교차 검증)")
+    roc: list[list[float]] | None = Field(default=None, description="ROC 곡선 점 [[fpr, tpr], ...]")
     note: str
 
 
