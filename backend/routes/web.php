@@ -6,6 +6,7 @@ use App\Livewire\Campaigns;
 use App\Livewire\Contacts;
 use App\Livewire\Dashboard;
 use App\Livewire\Segments;
+use App\Livewire\Settings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -46,6 +47,8 @@ Route::middleware('auth')->group(function () {
     Route::livewire('/segments/suggest', Segments\Suggest::class)->name('segments.suggest');
     Route::livewire('/segments/create', Segments\Form::class)->name('segments.create');
     Route::livewire('/segments/{segment}/edit', Segments\Form::class)->name('segments.edit');
+
+    Route::livewire('/settings', Settings\Index::class)->name('settings');
 
     Route::post('/logout', function (Request $request) {
         Auth::logout();
