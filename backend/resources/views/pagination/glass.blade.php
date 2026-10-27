@@ -1,7 +1,7 @@
 @if ($paginator->hasPages())
     <nav role="navigation" aria-label="페이지 이동" class="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm">
         <p class="text-ink-500">
-            총 {{ number_format($paginator->total()) }}명 중 {{ number_format($paginator->firstItem()) }}-{{ number_format($paginator->lastItem()) }}
+            총 {{ number_format($paginator->total()) }}건 중 {{ number_format($paginator->firstItem()) }}-{{ number_format($paginator->lastItem()) }}
         </p>
 
         <div class="flex items-center gap-1.5">

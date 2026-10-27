@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\TrackingController;
 use App\Livewire\Auth\Login;
+use App\Livewire\Campaigns;
 use App\Livewire\Contacts;
 use App\Livewire\Dashboard;
 use App\Livewire\Segments;
@@ -10,12 +12,21 @@ use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dashboard');
 
+// 공개 추적 엔드포인트 (인증 없음). 토큰 형식이 아니면 404.
+Route::get('/t/o/{token}.gif', [TrackingController::class, 'open'])->where('token', '[A-Za-z0-9]{40}')->name('track.open');
+Route::get('/t/c/{token}', [TrackingController::class, 'click'])->where('token', '[A-Za-z0-9]{40}')->name('track.click');
+
 Route::middleware('guest')->group(function () {
     Route::livewire('/login', Login::class)->name('login');
 });
 
 Route::middleware('auth')->group(function () {
     Route::livewire('/dashboard', Dashboard::class)->name('dashboard');
+
+    Route::livewire('/campaigns', Campaigns\Index::class)->name('campaigns.index');
+    Route::livewire('/campaigns/create', Campaigns\Form::class)->name('campaigns.create');
+    Route::livewire('/campaigns/{campaign}', Campaigns\Show::class)->name('campaigns.show');
+    Route::livewire('/campaigns/{campaign}/edit', Campaigns\Form::class)->name('campaigns.edit');
 
     Route::livewire('/contacts', Contacts\Index::class)->name('contacts.index');
     Route::livewire('/contacts/import', Contacts\Import::class)->name('contacts.import');
