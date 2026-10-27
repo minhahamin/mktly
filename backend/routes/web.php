@@ -3,6 +3,7 @@
 use App\Livewire\Auth\Login;
 use App\Livewire\Contacts;
 use App\Livewire\Dashboard;
+use App\Livewire\Segments;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -29,6 +30,10 @@ Route::middleware('auth')->group(function () {
             'Content-Disposition' => 'attachment; filename="mktly-contacts-sample.csv"',
         ]);
     })->name('contacts.template');
+
+    Route::livewire('/segments', Segments\Index::class)->name('segments.index');
+    Route::livewire('/segments/create', Segments\Form::class)->name('segments.create');
+    Route::livewire('/segments/{segment}/edit', Segments\Form::class)->name('segments.edit');
 
     Route::post('/logout', function (Request $request) {
         Auth::logout();
