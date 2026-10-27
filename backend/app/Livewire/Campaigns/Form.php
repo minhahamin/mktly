@@ -121,6 +121,14 @@ class Form extends Component
             return;
         }
 
+        try {
+            app(CampaignSender::class)->assertWithinEmailQuota($this->draftCampaign(), $this->recipientCount);
+        } catch (DomainException $e) {
+            $this->addError('segment_id', $e->getMessage());
+
+            return;
+        }
+
         $this->confirmingSend = true;
     }
 
@@ -226,6 +234,13 @@ class Form extends Component
         return app(CampaignSender::class)->recipientCount($this->draftCampaign());
     }
 
+    /** 오늘 남은 이메일 발송 한도. 한도가 설정되지 않았으면 null */
+    #[Computed]
+    public function emailQuota(): ?int
+    {
+        return app(CampaignSender::class)->remainingEmailQuota();
+    }
+
     /** 첫 번째 고객으로 변수를 치환한 미리보기 */
     #[Computed]
     public function preview(): array
@@ -300,6 +315,7 @@ class Form extends Component
         return new Campaign([
             'workspace_id' => auth()->user()->currentWorkspaceId(),
             'segment_id' => $this->segment_id === '' ? null : (int) $this->segment_id,
+            'channel' => $this->channel,
         ]);
     }
 }

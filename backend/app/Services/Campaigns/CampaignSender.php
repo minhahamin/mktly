@@ -50,13 +50,17 @@ class CampaignSender
      *
      * @return bool 다른 프로세스가 먼저 시작했거나 발송할 수 없는 상태면 false
      *
-     * @throws DomainException 발송 대상이 없는 경우(캠페인은 변경되지 않는다)
+     * @throws DomainException 발송 대상이 없거나 오늘 발송 한도를 넘는 경우(캠페인은 변경되지 않는다)
      */
     public function start(Campaign $campaign): bool
     {
-        if ($this->recipientCount($campaign) === 0) {
+        $count = $this->recipientCount($campaign);
+
+        if ($count === 0) {
             throw new DomainException('발송 대상 고객이 없습니다.');
         }
+
+        $this->assertWithinEmailQuota($campaign, $count);
 
         // 예약 실행기와 수동 발송이 겹쳐도 한 번만 시작되도록 상태를 원자적으로 선점한다.
         $claimed = Campaign::withoutGlobalScopes()
@@ -82,6 +86,38 @@ class CampaignSender
             });
 
         return true;
+    }
+
+    /**
+     * 오늘 더 보낼 수 있는 이메일 건수. 일일 한도(MKTLY_MAIL_DAILY_LIMIT)가 없으면 null이다.
+     * 오늘 만든 이메일 메시지 중 대기 또는 발송 완료 건을 사용량으로 센다(실패 건은 제외).
+     */
+    public function remainingEmailQuota(): ?int
+    {
+        $limit = config('mktly.mail.daily_limit');
+
+        if (! $limit) {
+            return null;
+        }
+
+        $used = CampaignMessage::query()
+            ->join('campaigns', 'campaigns.id', '=', 'campaign_messages.campaign_id')
+            ->where('campaigns.channel', 'email')
+            ->where('campaign_messages.created_at', '>=', now()->startOfDay())
+            ->whereIn('campaign_messages.status', ['pending', 'sent'])
+            ->count();
+
+        return max(0, (int) $limit - $used);
+    }
+
+    /** @throws DomainException 이메일 캠페인의 대상이 오늘 남은 한도보다 많은 경우 */
+    public function assertWithinEmailQuota(Campaign $campaign, int $recipients): void
+    {
+        $remaining = $campaign->channel === 'email' ? $this->remainingEmailQuota() : null;
+
+        if ($remaining !== null && $recipients > $remaining) {
+            throw new DomainException("오늘 남은 이메일 발송 한도({$remaining}건)보다 대상({$recipients}명)이 많습니다. 세그먼트를 줄이거나 내일 다시 시도해 주세요.");
+        }
     }
 
     /** 모든 메시지 처리가 끝났다면 캠페인 상태를 sent(전부 실패면 failed)로 마감한다. */

@@ -8,6 +8,12 @@ return [
         'password' => env('MKTLY_DEMO_PASSWORD', env('APP_ENV') === 'local' ? 'mktly-demo-1234' : null),
     ],
 
+    // 메일 제공업체(예: Brevo 무료 요금제는 하루 300통)의 일일 발송 한도. 비워 두면 제한하지 않는다.
+    // 한도를 넘는 발송은 시작 전에 막아서 캠페인이 중간에 실패하는 일을 피한다.
+    'mail' => [
+        'daily_limit' => env('MKTLY_MAIL_DAILY_LIMIT') ? (int) env('MKTLY_MAIL_DAILY_LIMIT') : null,
+    ],
+
     // 배포 후 첫 관리자 계정. 값이 모두 있고 사용자가 한 명도 없을 때만 `mktly:bootstrap`이 계정을 만든다.
     'admin' => [
         'name' => env('MKTLY_ADMIN_NAME', '관리자'),

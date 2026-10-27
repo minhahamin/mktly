@@ -94,6 +94,12 @@
             <x-glass.card>
                 <p class="text-sm font-medium text-ink-500">발송 대상</p>
                 <p class="mt-2 text-4xl font-bold tracking-tight">{{ number_format($this->recipientCount) }}<span class="ml-1 text-lg font-semibold text-ink-500">명</span></p>
+                @if ($channel === 'email' && $this->emailQuota !== null)
+                    <p class="mt-3 rounded-2xl px-3 py-2 text-xs {{ $this->recipientCount > $this->emailQuota ? 'bg-danger/10 text-danger' : 'bg-mint-100/80 text-ink-700' }}">
+                        오늘 남은 이메일 발송 한도 {{ number_format($this->emailQuota) }}건
+                        @if ($this->recipientCount > $this->emailQuota) · 대상이 한도보다 많아 지금 발송할 수 없습니다 @endif
+                    </p>
+                @endif
                 @if ($channel !== 'email')
                     <p class="mt-3 rounded-2xl bg-lavender-100/80 px-3 py-2 text-xs text-ink-700">{{ \App\Models\Campaign::CHANNELS[$channel] ?? '' }} 채널은 실제 전송 없이 발송 완료로만 기록됩니다.</p>
                 @endif
