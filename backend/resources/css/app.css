@@ -2,8 +2,154 @@
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
+@source '../views';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+
+    --color-pink-50: #fff5f8;
+    --color-pink-100: #ffe4ec;
+    --color-pink-200: #fccfdd;
+    --color-pink-300: #f9b4c8;
+    --color-pink-400: #f594b2;
+    --color-pink-500: #f07aa0;
+    --color-pink-600: #de5f8a;
+    --color-pink-700: #c2476f;
+
+    --color-lavender-100: #e3e3fa;
+    --color-lavender-400: #a9a9e6;
+    --color-mint-100: #ddf1e6;
+    --color-mint-400: #86c9a3;
+    --color-peach-100: #ffe6d2;
+    --color-peach-400: #f5b17f;
+
+    --color-ink-900: #2b2230;
+    --color-ink-700: #4a3f51;
+    --color-ink-500: #7a6f80;
+    --color-line: #f0dce4;
+
+    --color-ok: #4f9d73;
+    --color-warn: #c58a2b;
+    --color-danger: #c5475a;
+
+    --radius-glass: 1.75rem;
+}
+
+:root {
+    --glass-bg: rgba(255, 255, 255, 0.34);
+    --glass-bg-strong: rgba(255, 255, 255, 0.74);
+    --glass-border: rgba(255, 255, 255, 0.7);
+    --glass-blur: 18px;
+    --glass-shadow: 0 10px 30px -12px rgba(194, 71, 111, 0.22), 0 2px 6px rgba(43, 34, 48, 0.05);
+    --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(240, 122, 160, 0.12);
+}
+
+html {
+    color-scheme: light;
+}
+
+body {
+    background-color: var(--color-pink-50);
+    color: var(--color-ink-900);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+}
+
+/* 배경: 유리 뒤에 비칠 파스텔 blob */
+.app-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: -10;
+    overflow: hidden;
+    background:
+        radial-gradient(60rem 40rem at 8% 6%, rgba(249, 150, 185, 0.75), transparent 62%),
+        radial-gradient(48rem 36rem at 92% 12%, rgba(190, 190, 245, 0.95), transparent 62%),
+        radial-gradient(52rem 40rem at 78% 94%, rgba(255, 205, 165, 0.9), transparent 62%),
+        radial-gradient(44rem 34rem at 6% 88%, rgba(170, 225, 195, 0.85), transparent 62%),
+        var(--color-pink-50);
+}
+
+@layer components {
+    /* 유리 표면 */
+    .glass,
+    .glass-strong {
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--glass-shadow), var(--glass-highlight);
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+        backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+    }
+
+    .glass-strong {
+        background: var(--glass-bg-strong);
+    }
+
+    @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+        .glass {
+            background: rgba(255, 255, 255, 0.82);
+        }
+
+        .glass-strong {
+            background: rgba(255, 255, 255, 0.94);
+        }
+    }
+
+    @media (prefers-reduced-transparency: reduce) {
+        .glass {
+            background: rgba(255, 255, 255, 0.88);
+        }
+
+        .glass-strong {
+            background: rgba(255, 255, 255, 0.96);
+        }
+
+        .glass,
+        .glass-strong {
+            -webkit-backdrop-filter: none;
+            backdrop-filter: none;
+        }
+    }
+}
+
+/* 버튼 틴트 */
+@utility tint-pink {
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(240, 122, 160, 0.38));
+    box-shadow: 0 8px 22px -8px rgba(240, 122, 160, 0.6), var(--glass-highlight);
+    border-color: rgba(240, 122, 160, 0.45);
+}
+
+@utility tint-lavender {
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(169, 169, 230, 0.4));
+    box-shadow: 0 8px 22px -8px rgba(169, 169, 230, 0.7), var(--glass-highlight);
+    border-color: rgba(169, 169, 230, 0.5);
+}
+
+@utility tint-mint {
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(134, 201, 163, 0.4));
+    box-shadow: 0 8px 22px -8px rgba(134, 201, 163, 0.7), var(--glass-highlight);
+    border-color: rgba(134, 201, 163, 0.5);
+}
+
+@utility tint-peach {
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(245, 177, 127, 0.4));
+    box-shadow: 0 8px 22px -8px rgba(245, 177, 127, 0.7), var(--glass-highlight);
+    border-color: rgba(245, 177, 127, 0.5);
+}
+
+.focus-ring:focus-visible {
+    outline: 2px solid var(--color-pink-600);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+[x-cloak] {
+    display: none !important;
 }

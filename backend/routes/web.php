@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::get('/', fn () => redirect('/dashboard'));
+
+if (app()->environment('local')) {
+    Route::view('/design', 'design');
+}
