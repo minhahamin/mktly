@@ -98,12 +98,14 @@ services:
 
   ai:
     build: ./ai
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
     environment:
       AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:-dev-internal-token}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-5-5}
     ports:
       - "${AI_HOST_PORT:-8101}:8001"
+    user: root
     volumes:
       - ./ai:/app
 
