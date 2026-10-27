@@ -15,7 +15,7 @@ PHP(Laravel)가 화면과 비즈니스 로직을, Python(FastAPI)이 AI 기능�
 | 세그먼트 | AND/OR 조건 규칙, **입력 중 대상 수 실시간 미리보기**, 사람이 읽는 조건 요약 |
 | 캠페인 | 작성, 변수 치환 미리보기, 즉시 발송, **예약 발송**, 500건 단위 큐 발송, 발송 진행률, 전환 퍼널과 링크별 클릭 |
 | 추적 | 오픈 픽셀, 클릭 리디렉션, 수신자별 토큰 귀속 |
-| AI | **카피 생성**(제목 후보 5개와 본문 초안), **이탈 확률 예측**(일 1회 배치), **고객 클러스터링**과 세그먼트 추천 |
+| AI | **카피 생성**(제목 후보 5개와 본문 초안), **이탈 확률 예측**(일 1회 배치), **고객 클러스터링**과 세그먼트 추천, 사이드바의 **모델 성능 카드**(ROC 곡선, AUC, 정밀도, 재현율) |
 | 설정 | 워크스페이스 이름, 멤버 추가/역할 변경/제거, 비밀번호 변경, 역할(관리자/마케터/뷰어) 권한 |
 
 <table>
@@ -55,7 +55,7 @@ PHP(Laravel)가 화면과 비즈니스 로직을, Python(FastAPI)이 AI 기능�
 | 데이터 | MySQL 8, Redis (큐, 캐시, 세션) |
 | AI 서비스 | Python 3.12, FastAPI, scikit-learn, pandas, Anthropic SDK |
 | 인프라 | Docker Compose (app, queue, scheduler, ai, mysql, redis, mailpit) |
-| 테스트 | Pest 164개 (Livewire 포함), pytest 43개 |
+| 테스트 | Pest 170개 (Livewire 포함), pytest 45개 |
 
 ## 실행 방법
 
