@@ -1,0 +1,13 @@
+{
+	frankenphp
+	order php_server before file_server
+	# TLS는 Railway 프록시가 처리한다.
+	auto_https off
+	admin off
+}
+
+:{$PORT:8080} {
+	root * /app/public
+	encode zstd gzip
+	php_server
+}
