@@ -24,21 +24,29 @@ class DemoSeeder extends Seeder
         ['신제품 출시 안내', '새로운 라인업을 가장 먼저 만나보세요', 4],
     ];
 
+    /** 로컬 개발용: 설정된 데모 계정(관리자)으로 데모 워크스페이스를 만든다. */
     public function run(): void
+    {
+        $this->seed((string) config('mktly.demo.email'), (string) config('mktly.demo.password'), 'admin');
+    }
+
+    /**
+     * 데모 계정과 별도 워크스페이스에 고객, 세그먼트, 캠페인, 발송 이벤트를 만든다.
+     * 실제 워크스페이스와 데이터가 섞이지 않도록 항상 새 워크스페이스를 만든다.
+     */
+    public function seed(string $email, string $password, string $role): Workspace
     {
         mt_srand(42);
 
         $workspace = Workspace::create(['name' => 'Mktly 데모 스토어']);
-        $user = User::create([
-            'name' => '데모 마케터',
-            'email' => config('mktly.demo.email'),
-            'password' => config('mktly.demo.password'),
-        ]);
-        $workspace->users()->attach($user->id, ['role' => 'admin']);
+        $user = User::create(['name' => '데모 마케터', 'email' => $email, 'password' => $password]);
+        $workspace->users()->attach($user->id, ['role' => $role]);
 
         $affinity = $this->seedContacts($workspace->id);
         $this->seedSegments($workspace->id);
         $this->seedCampaigns($workspace->id, $affinity);
+
+        return $workspace;
     }
 
     /**
