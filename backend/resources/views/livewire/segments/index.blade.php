@@ -5,6 +5,7 @@
 
     <x-page-header title="세그먼트" subtitle="조건으로 고객 그룹을 만들어 캠페인 대상으로 사용합니다.">
         @if ($this->canManage)
+            <x-glass.button href="/segments/suggest" tint="lavender" icon="sparkles">AI 추천</x-glass.button>
             <x-glass.button href="/segments/create" icon="plus">세그먼트 만들기</x-glass.button>
         @endif
     </x-page-header>

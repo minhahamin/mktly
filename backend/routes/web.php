@@ -43,6 +43,7 @@ Route::middleware('auth')->group(function () {
     })->name('contacts.template');
 
     Route::livewire('/segments', Segments\Index::class)->name('segments.index');
+    Route::livewire('/segments/suggest', Segments\Suggest::class)->name('segments.suggest');
     Route::livewire('/segments/create', Segments\Form::class)->name('segments.create');
     Route::livewire('/segments/{segment}/edit', Segments\Form::class)->name('segments.edit');
 

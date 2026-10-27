@@ -48,6 +48,11 @@ class SegmentRuleEngine
             'input' => 'decimal',
             'ops' => ['>=' => '이상', '<=' => '이하'],
         ],
+        'cluster_id' => [
+            'label' => 'AI 클러스터 번호',
+            'input' => 'number',
+            'ops' => ['=' => '같음'],
+        ],
     ];
 
     /** 값이 필요 없는 연산자 */
@@ -123,6 +128,10 @@ class SegmentRuleEngine
         $value = $condition['value'] ?? '';
         $label = $field['label'];
 
+        if ($condition['field'] === 'cluster_id') {
+            return "AI 클러스터 #{$value}";
+        }
+
         return match ($condition['op']) {
             '>=' => $label.' '.$this->format($condition['field'], $value).' 이상',
             '<=' => $label.' '.$this->format($condition['field'], $value).' 이하',
@@ -167,6 +176,7 @@ class SegmentRuleEngine
         match ($c['field']) {
             'total_spent' => $q->where('total_spent', $c['op'], (int) $value),
             'churn_score' => $q->where('churn_score', $c['op'], (float) $value),
+            'cluster_id' => $q->where('cluster_id', (int) $value),
             'joined_at' => $this->applyDate($q, 'joined_at', $c['op'], (int) $value),
             'last_purchase_at' => $c['op'] === 'never'
                 ? $q->whereNull('last_purchase_at')
