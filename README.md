@@ -55,7 +55,7 @@ PHP(Laravel)가 화면과 비즈니스 로직을, Python(FastAPI)이 AI 기능�
 | 데이터 | MySQL 8, Redis (큐, 캐시, 세션) |
 | AI 서비스 | Python 3.12, FastAPI, scikit-learn, pandas, Anthropic SDK |
 | 인프라 | Docker Compose (app, queue, scheduler, ai, mysql, redis, mailpit) |
-| 테스트 | Pest 170개 (Livewire 포함), pytest 45개 |
+| 테스트 | Pest 185개 (Livewire 포함), pytest 45개 |
 
 ## 실행 방법
 
@@ -87,6 +87,8 @@ cd backend && npm install && npm run build
 
 호스트 포트는 다른 프로젝트와 겹치지 않도록 일부러 비표준 값을 썼고, 루트 `.env`로 바꿀 수 있습니다(`.env.example` 참고).
 
+로컬에서는 `migrate --seed`가 데모 워크스페이스와 샘플 데이터를 자동으로 만듭니다. 데모 계정의 비밀번호가 저장소에 공개되어 있으므로 **로컬 환경(`APP_ENV=local`)에서만** 자동 시드되고, 다른 환경에서는 건너뜁니다.
+
 ### AI 카피를 실제 Claude로 쓰려면
 
 루트에 `.env`를 만들고 키를 넣은 뒤 `docker compose up -d`를 다시 실행하세요. 키가 없으면 AI 서비스는 샘플 결과를 돌려주는 Mock 모드로 동작하고, 화면에 "샘플 결과" 표시가 나타납니다.
@@ -105,6 +107,10 @@ docker compose exec -w /var/www/html app ./vendor/bin/pint       # 코드 스타
 ```
 
 테스트는 sqlite 메모리 DB에서만 실행되며, 개발용 MySQL에서 실행되려 하면 시작 전에 중단됩니다.
+
+## 배포 (Railway)
+
+웹, 큐 워커, 스케줄러를 한 컨테이너로 묶고 큐, 세션, 캐시를 MySQL에 저장해서 **서비스 3개(웹, AI, MySQL)** 로 줄였습니다. 첫 관리자는 환경변수로 만들고, 공개 데모 데이터는 별도 워크스페이스에 읽기 전용 계정으로 만듭니다. 자세한 절차는 [DEPLOY.md](DEPLOY.md)를 보세요.
 
 ## 설계에서 신경 쓴 부분
 
