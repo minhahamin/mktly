@@ -77,9 +77,9 @@ class DemoSeeder extends Seeder
     private function seedSegments(int $workspaceId): void
     {
         $defs = [
-            ['VIP 고객', [['field' => 'total_spent', 'op' => '>=', 'value' => 300000]]],
-            ['최근 가입 (30일)', [['field' => 'joined_at', 'op' => 'within_days', 'value' => 30]]],
-            ['90일 이상 미구매', [['field' => 'last_purchase_at', 'op' => 'older_than_days', 'value' => 90]]],
+            ['VIP 고객', ['match' => 'all', 'conditions' => [['field' => 'total_spent', 'op' => '>=', 'value' => 300000]]]],
+            ['최근 가입 (30일)', ['match' => 'all', 'conditions' => [['field' => 'joined_at', 'op' => 'within_days', 'value' => 30]]]],
+            ['휴면 위험 고객', ['match' => 'any', 'conditions' => [['field' => 'last_purchase_at', 'op' => 'older_than_days', 'value' => 90], ['field' => 'last_purchase_at', 'op' => 'never', 'value' => null]]]],
         ];
 
         foreach ($defs as [$name, $rules]) {
