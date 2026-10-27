@@ -97,6 +97,9 @@
             <x-glass.card>
                 <p class="text-sm font-medium text-ink-500">발송 대상</p>
                 <p class="mt-2 text-4xl font-bold tracking-tight">{{ number_format($this->recipientCount) }}<span class="ml-1 text-lg font-semibold text-ink-500">명</span></p>
+                @if ($channel === 'email' && ! $this->emailSendingEnabled)
+                    <p class="mt-3 rounded-2xl bg-lavender-100/80 px-3 py-2 text-xs text-ink-700">체험 모드: 이 워크스페이스에서는 이메일이 실제로 발송되지 않습니다. 작성, 미리보기, SMS/푸시 모의 발송은 사용할 수 있습니다.</p>
+                @endif
                 @if ($channel === 'email' && $this->emailQuota !== null)
                     <p class="mt-3 rounded-2xl px-3 py-2 text-xs {{ $this->recipientCount > $this->emailQuota ? 'bg-danger/10 text-danger' : 'bg-mint-100/80 text-ink-700' }}">
                         오늘 남은 이메일 발송 한도 {{ number_format($this->emailQuota) }}건

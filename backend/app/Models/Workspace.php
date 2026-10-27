@@ -14,6 +14,7 @@ class Workspace extends Model
         return [
             'churn_scored_at' => 'datetime',
             'churn_meta' => 'array',
+            'sending_enabled' => 'boolean',
         ];
     }
 

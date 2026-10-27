@@ -6,6 +6,7 @@ use App\Models\AiGeneration;
 use App\Models\Campaign;
 use App\Models\Contact;
 use App\Models\Segment;
+use App\Models\Workspace;
 use App\Services\Ai\AiClient;
 use App\Services\Ai\AiUnavailableException;
 use App\Services\Ai\AiUsage;
@@ -123,6 +124,7 @@ class Form extends Component
         }
 
         try {
+            app(CampaignSender::class)->assertEmailSendingEnabled($this->draftCampaign());
             app(CampaignSender::class)->assertWithinEmailQuota($this->draftCampaign(), $this->recipientCount);
         } catch (DomainException $e) {
             $this->addError('segment_id', $e->getMessage());
@@ -240,6 +242,13 @@ class Form extends Component
     public function recipientCount(): int
     {
         return app(CampaignSender::class)->recipientCount($this->draftCampaign());
+    }
+
+    /** 이 워크스페이스에서 이메일을 실제로 발송할 수 있는지(체험/데모 워크스페이스는 false) */
+    #[Computed]
+    public function emailSendingEnabled(): bool
+    {
+        return (bool) Workspace::query()->whereKey(auth()->user()->currentWorkspaceId())->value('sending_enabled');
     }
 
     /** 오늘 남은 AI 카피 생성 횟수. 한도가 설정되지 않았으면 null */

@@ -8,6 +8,7 @@ use App\Models\CampaignMessage;
 use App\Models\Contact;
 use App\Models\Segment;
 use App\Models\TrackedLink;
+use App\Models\Workspace;
 use App\Services\Segments\SegmentRuleEngine;
 use DomainException;
 use Illuminate\Database\Eloquent\Builder;
@@ -60,6 +61,7 @@ class CampaignSender
             throw new DomainException('발송 대상 고객이 없습니다.');
         }
 
+        $this->assertEmailSendingEnabled($campaign);
         $this->assertWithinEmailQuota($campaign, $count);
 
         // 예약 실행기와 수동 발송이 겹쳐도 한 번만 시작되도록 상태를 원자적으로 선점한다.
@@ -108,6 +110,22 @@ class CampaignSender
             ->count();
 
         return max(0, (int) $limit - $used);
+    }
+
+    /**
+     * 체험(공개 회원가입)이나 데모 워크스페이스는 실제 이메일 발송이 꺼져 있다. 스팸 남용과 반송을 막기 위한 장치다.
+     *
+     * @throws DomainException 이메일 캠페인인데 워크스페이스의 실제 발송이 꺼져 있는 경우
+     */
+    public function assertEmailSendingEnabled(Campaign $campaign): void
+    {
+        if ($campaign->channel !== 'email') {
+            return;
+        }
+
+        if (! Workspace::query()->whereKey($campaign->workspace_id)->value('sending_enabled')) {
+            throw new DomainException('이 워크스페이스는 체험 모드라 이메일을 실제로 발송할 수 없습니다. SMS/푸시(모의 발송)로 시험해 보거나 운영자에게 문의해 주세요.');
+        }
     }
 
     /** @throws DomainException 이메일 캠페인의 대상이 오늘 남은 한도보다 많은 경우 */
