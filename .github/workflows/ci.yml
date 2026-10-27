@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# 같은 브랜치에서 새 커밋이 올라오면 이전 실행을 취소한다.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Laravel (Pint, Pest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, bcmath, pdo_sqlite, sqlite3, zip, pcntl
+          coverage: none
+          tools: composer:v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Composer 캐시 경로
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ hashFiles('backend/composer.lock') }}
+          restore-keys: composer-
+
+      - name: PHP 의존성 설치
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: 에셋 빌드 (뷰가 Vite 매니페스트를 참조한다)
+        run: |
+          npm ci
+          npm run build
+
+      - name: 앱 키 생성
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: 코드 스타일 (Pint)
+        run: ./vendor/bin/pint --test
+
+      - name: 테스트 (Pest, sqlite 메모리 DB)
+        run: ./vendor/bin/pest
+
+  ai:
+    name: AI 서비스 (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: ai/requirements.txt
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: 테스트
+        run: python -m pytest -q
+
+  docker:
+    name: 운영 이미지 빌드
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: 웹 이미지 (Dockerfile.prod)
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/Dockerfile.prod
+          push: false
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
+
+      - name: AI 이미지
+        uses: docker/build-push-action@v6
+        with:
+          context: ai
+          push: false
+          cache-from: type=gha,scope=ai
+          cache-to: type=gha,scope=ai,mode=max
