@@ -36,12 +36,16 @@ class DemoSeeder extends Seeder
         ]);
         $workspace->users()->attach($user->id, ['role' => 'admin']);
 
-        $contactIds = $this->seedContacts($workspace->id);
+        $affinity = $this->seedContacts($workspace->id);
         $this->seedSegments($workspace->id);
-        $this->seedCampaigns($workspace->id, $contactIds);
+        $this->seedCampaigns($workspace->id, $affinity);
     }
 
-    /** @return list<int> */
+    /**
+     * 고객을 만들고 고객별 메일 오픈 성향(0~1)을 돌려준다. 최근에 구매한 고객일수록 메일을 더 잘 연다.
+     *
+     * @return array<int, float> 고객 id => 오픈 확률
+     */
     private function seedContacts(int $workspaceId): array
     {
         $surnames = ['김', '이', '박', '최', '정', '강', '조', '윤', '장', '임'];
@@ -49,10 +53,18 @@ class DemoSeeder extends Seeder
         $tags = ['뉴스레터', 'VIP', '신규', '모바일', '이벤트참여'];
         $now = now();
         $rows = [];
+        $affinity = [];
 
         for ($i = 1; $i <= 1000; $i++) {
             $joined = $now->copy()->subDays(mt_rand(10, 720));
             $purchased = mt_rand(1, 100) <= 85 ? $now->copy()->subDays(mt_rand(1, 365)) : null;
+            $daysSincePurchase = $purchased ? $purchased->diffInDays($now, true) : null;
+            $affinity[] = match (true) {
+                $daysSincePurchase === null => 0.12,
+                $daysSincePurchase <= 60 => 0.65,
+                $daysSincePurchase <= 180 => 0.35,
+                default => 0.15,
+            };
 
             $rows[] = [
                 'workspace_id' => $workspaceId,
@@ -71,7 +83,9 @@ class DemoSeeder extends Seeder
             DB::table('contacts')->insert($chunk);
         }
 
-        return DB::table('contacts')->where('workspace_id', $workspaceId)->pluck('id')->all();
+        $ids = DB::table('contacts')->where('workspace_id', $workspaceId)->orderBy('id')->pluck('id')->all();
+
+        return array_combine($ids, $affinity);
     }
 
     private function seedSegments(int $workspaceId): void
@@ -87,9 +101,11 @@ class DemoSeeder extends Seeder
         }
     }
 
-    /** @param list<int> $contactIds */
-    private function seedCampaigns(int $workspaceId, array $contactIds): void
+    /** @param array<int, float> $affinity */
+    private function seedCampaigns(int $workspaceId, array $affinity): void
     {
+        $contactIds = array_keys($affinity);
+
         foreach (self::CAMPAIGNS as $index => [$name, $subject, $daysAgo]) {
             $sentAt = now()->subDays($daysAgo)->setTime(10, 0);
             $campaign = Campaign::withoutGlobalScopes()->create([
@@ -113,7 +129,7 @@ class DemoSeeder extends Seeder
                 ]);
             }
 
-            $this->seedMessagesAndEvents($campaign->id, $sentAt, $contactIds, $linkIds, 600 + $index * 50);
+            $this->seedMessagesAndEvents($campaign->id, $sentAt, $contactIds, $linkIds, 600 + $index * 50, $affinity);
         }
 
         Campaign::withoutGlobalScopes()->create([
@@ -139,8 +155,9 @@ class DemoSeeder extends Seeder
     /**
      * @param  list<int>  $contactIds
      * @param  list<int>  $linkIds
+     * @param  array<int, float>  $affinity
      */
-    private function seedMessagesAndEvents(int $campaignId, DateTimeInterface $sentAt, array $contactIds, array $linkIds, int $recipients): void
+    private function seedMessagesAndEvents(int $campaignId, DateTimeInterface $sentAt, array $contactIds, array $linkIds, int $recipients, array $affinity): void
     {
         $keys = (array) array_rand($contactIds, min($recipients, count($contactIds)));
         $messages = [];
@@ -149,7 +166,7 @@ class DemoSeeder extends Seeder
 
         foreach ($keys as $key) {
             $contactId = $contactIds[$key];
-            $opened = mt_rand(1, 100) <= 42;
+            $opened = mt_rand(1, 1000) <= (int) round(($affinity[$contactId] ?? 0.42) * 1000);
             $openedAt = $opened ? $baseTime->copy()->addMinutes(mt_rand(3, 3000)) : null;
 
             $messages[] = [

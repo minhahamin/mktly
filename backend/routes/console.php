@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('campaigns:dispatch-scheduled')->everyMinute()->withoutOverlapping();
+Schedule::command('contacts:score-churn')->dailyAt('03:00');

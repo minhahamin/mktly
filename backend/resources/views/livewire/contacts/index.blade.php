@@ -1,12 +1,21 @@
 <div>
     <x-page-header title="고객" subtitle="마케팅 대상 고객을 검색하고 관리합니다.">
         @if ($this->canManage)
+            <x-glass.button type="button" tint="mint" icon="trending-up" wire:click="refreshChurn" wire:loading.attr="disabled" wire:target="refreshChurn">이탈 점수 갱신</x-glass.button>
             <x-glass.button href="/contacts/import" tint="lavender" icon="upload">CSV 업로드</x-glass.button>
             <x-glass.button type="button" icon="plus" wire:click="create">고객 추가</x-glass.button>
         @endif
     </x-page-header>
 
     <x-glass.card strong padding="p-5 sm:p-6">
+        @if ($this->churnInfo)
+            <p class="mb-4 text-xs text-ink-500">
+                이탈 점수 갱신: {{ $this->churnInfo['at']->format('Y.m.d H:i') }}
+                @if (($this->churnInfo['meta']['auc'] ?? null) !== null) · 모델 AUC {{ $this->churnInfo['meta']['auc'] }} @endif
+                · {{ ($this->churnInfo['meta']['method'] ?? '') === 'heuristic' ? '규칙 기반(학습 데이터 부족)' : '로지스틱 회귀' }}
+            </p>
+        @endif
+
         <div class="mb-5 grid gap-3 sm:grid-cols-[1fr_14rem]">
             <x-glass.input icon="search" type="search" placeholder="이름 또는 이메일 검색" aria-label="고객 검색" wire:model.live.debounce.300ms="search" />
             <x-glass.select aria-label="태그 필터" wire:model.live="tag">
@@ -20,11 +29,11 @@
         @php($contacts = $this->contacts)
 
         <div class="overflow-x-auto" wire:loading.class="opacity-60" wire:target="search,tag,sortBy,gotoPage,nextPage,previousPage">
-            <table class="w-full min-w-[44rem] text-left text-sm">
+            <table class="w-full min-w-[52rem] text-left text-sm">
                 <thead class="text-ink-500">
                     <tr>
-                        @foreach (['name' => '이름', 'email' => '이메일', 'joined_at' => '가입일', 'last_purchase_at' => '마지막 구매', 'total_spent' => '누적 구매액'] as $field => $label)
-                            <th class="pb-3 font-medium {{ $field === 'total_spent' ? 'text-right' : '' }}"
+                        @foreach (['name' => '이름', 'email' => '이메일', 'joined_at' => '가입일', 'last_purchase_at' => '마지막 구매', 'total_spent' => '누적 구매액', 'churn_score' => '이탈 위험'] as $field => $label)
+                            <th class="pb-3 font-medium {{ $field === 'total_spent' ? 'text-right' : '' }} {{ $field === 'churn_score' ? 'pl-6' : '' }}"
                                 @if ($sort === $field) aria-sort="{{ $direction === 'asc' ? 'ascending' : 'descending' }}" @endif>
                                 <button type="button" wire:click="sortBy('{{ $field }}')" class="focus-ring inline-flex items-center gap-1 rounded-full px-1 hover:text-ink-900">
                                     {{ $label }}
@@ -46,6 +55,20 @@
                             <td class="py-3 text-ink-500">{{ $contact->joined_at?->format('Y.m.d') ?? '-' }}</td>
                             <td class="py-3 text-ink-500">{{ $contact->last_purchase_at?->format('Y.m.d') ?? '-' }}</td>
                             <td class="py-3 text-right">{{ number_format($contact->total_spent) }}원</td>
+                            <td class="py-3 pl-6">
+                                @if ($contact->churn_score === null)
+                                    <span class="text-ink-500">-</span>
+                                @else
+                                    @php([$riskLabel, $riskClass] = match (true) {
+                                        $contact->churn_score >= 0.7 => ['높음', 'border-danger/30 bg-danger/10 text-danger'],
+                                        $contact->churn_score >= 0.4 => ['보통', 'border-peach-400/50 bg-peach-100'],
+                                        default => ['낮음', 'border-mint-400/50 bg-mint-100'],
+                                    })
+                                    <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold {{ $riskClass }}" title="이탈 확률 {{ round($contact->churn_score * 100) }}%">
+                                        {{ $riskLabel }} {{ round($contact->churn_score * 100) }}%
+                                    </span>
+                                @endif
+                            </td>
                             <td class="py-3">
                                 <div class="flex flex-wrap gap-1.5">
                                     @foreach ($contact->tags ?? [] as $t)
@@ -64,7 +87,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="py-14 text-center text-ink-500">
+                            <td colspan="8" class="py-14 text-center text-ink-500">
                                 @if ($search !== '' || $tag !== '')
                                     조건에 맞는 고객이 없습니다.
                                 @else
