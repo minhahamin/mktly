@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    // 내부 AI 서비스(FastAPI). 브라우저에는 노출하지 않고 Laravel에서만 호출한다.
+    'ai' => [
+        'url' => env('AI_SERVICE_URL', 'http://ai:8001'),
+        'token' => env('AI_INTERNAL_TOKEN'),
+        'timeout' => (int) env('AI_TIMEOUT', 30),
+    ],
+
 ];

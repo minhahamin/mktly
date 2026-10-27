@@ -9,6 +9,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 #[Fillable(['name'])]
 class Workspace extends Model
 {
+    protected function casts(): array
+    {
+        return [
+            'churn_scored_at' => 'datetime',
+            'churn_meta' => 'array',
+        ];
+    }
+
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'workspace_user')->withPivot('role')->withTimestamps();
