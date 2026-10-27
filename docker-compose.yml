@@ -55,6 +55,47 @@ services:
       redis:
         condition: service_healthy
 
+  queue:
+    build: ./backend
+    working_dir: /var/www/html
+    command: php artisan queue:work --tries=3 --sleep=1 --max-time=3600
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      REDIS_HOST: redis
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+      AI_SERVICE_URL: http://ai:8001
+    volumes:
+      - ./backend:/var/www/html
+      - app_vendor:/var/www/html/vendor
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  scheduler:
+    build: ./backend
+    working_dir: /var/www/html
+    command: php artisan schedule:work
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      REDIS_HOST: redis
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+    volumes:
+      - ./backend:/var/www/html
+      - app_vendor:/var/www/html/vendor
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   ai:
     build: ./ai
     environment:

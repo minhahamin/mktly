@@ -21,9 +21,24 @@ class Campaign extends Model
         ];
     }
 
+    public const STATUSES = ['draft', 'scheduled', 'sending', 'sent', 'failed'];
+
+    public const CHANNELS = ['email' => '이메일', 'sms' => 'SMS (모의 발송)', 'push' => '푸시 (모의 발송)'];
+
+    /** 내용을 수정하거나 발송을 시작할 수 있는 상태인가 */
+    public function isEditable(): bool
+    {
+        return in_array($this->status, ['draft', 'scheduled'], true);
+    }
+
     public function segment(): BelongsTo
     {
         return $this->belongsTo(Segment::class);
+    }
+
+    public function trackedLinks(): HasMany
+    {
+        return $this->hasMany(TrackedLink::class);
     }
 
     public function messages(): HasMany

@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['campaign_id', 'contact_id', 'status', 'sent_at', 'opened_at'])]
+#[Fillable(['campaign_id', 'contact_id', 'token', 'status', 'error', 'sent_at', 'opened_at'])]
 class CampaignMessage extends Model
 {
     protected function casts(): array
