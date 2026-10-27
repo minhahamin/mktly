@@ -12,21 +12,21 @@
 
 | 영역 | 선택 |
 |---|---|
-| Backend | PHP 8.4, Laravel 13, Sanctum(토큰 인증), Queue(Redis), Scheduler |
+| Backend | PHP 8.4, Laravel 13, 세션 인증, Queue(Redis), Scheduler |
+| Frontend | Blade, Livewire 4, Alpine.js, Tailwind CSS v4, Chart.js (Vite 빌드) |
 | DB | MySQL 8 |
 | Cache/Queue | Redis |
 | AI 서비스 | Python 3.12, FastAPI, scikit-learn, pandas, Anthropic SDK |
-| Frontend | Next.js (App Router), TypeScript, Tailwind CSS v4, Recharts |
-| 인프라 | Docker Compose (web, api, ai, mysql, redis, mailpit) |
-| 테스트 | Pest(PHP), pytest(Python), Playwright(E2E, 선택) |
+| 인프라 | Docker Compose (app, ai, mysql, redis, mailpit) |
+| 테스트 | Pest(PHP, Livewire 테스트 포함), pytest(Python) |
 
-프론트엔드는 Next.js로 분리하고 Laravel은 JSON API만 제공한다. (Blade 렌더링으로 바꾸려면 이 항목과 `frontend/CLAUDE.md`만 수정)
+화면은 Laravel 안에서 Blade와 Livewire로 서버 렌더링한다. 별도 프론트엔드 프로젝트와 화면용 JSON API는 없다. 프론트엔드 규칙은 `backend/CLAUDE.md`의 "프론트엔드" 절을 따른다.
 
 ## 3. 디자인 방향
 
 - 파스텔 핑크 중심의 부드럽고 깔끔한 SaaS 대시보드.
 - 이모지 금지, 아이콘은 SVG(예: lucide)만 사용.
-- 팔레트(초안, `frontend`의 CSS 변수로 관리)
+- 팔레트(초안, `backend/resources/css/app.css`의 CSS 변수로 관리)
 
 | 토큰 | 값 | 용도 |
 |---|---|---|
@@ -91,7 +91,7 @@
 - Laravel이 일 1회 배치로 `/predict/churn`을 호출해 `contacts.churn_score`에 저장
 
 ### 4.6 인증과 권한 (공통)
-- 이메일/비밀번호 로그인, Sanctum 토큰
+- 이메일/비밀번호 로그인, 세션 인증 (Laravel 기본 Auth)
 - 워크스페이스 단위 데이터 분리, 역할: `admin`, `marketer`, `viewer`
 
 ### MVP 제외 (후속)
@@ -100,14 +100,14 @@ A/B 테스트, 실제 SMS/푸시 발송, 감성 분석, 주간 리포트 자동 
 ## 5. 아키텍처
 
 ```
-[Next.js :3000] --REST--> [Laravel API :8000] --MySQL--> [mysql :3306]
+[Browser] --HTML/Livewire--> [Laravel(Blade+Livewire) :8000] --MySQL--> [mysql :3306]
                                 |   |
-                                |   +--Queue/Cache--> [redis :6379]
+                                |   +--Queue/Cache/Session--> [redis :6379]
                                 |   +--SMTP--> [mailpit :1025 / UI :8025]
                                 +--HTTP (내부 토큰)--> [FastAPI :8001]
 ```
 
-- 브라우저는 Laravel API만 호출한다. AI 서비스는 외부에 노출하지 않고 Laravel이 중계한다.
+- 브라우저는 Laravel만 호출한다. AI 서비스는 외부에 노출하지 않고 Laravel이 중계한다.
 - Laravel -> FastAPI 호출은 `X-Internal-Token` 헤더로 보호한다.
 - AI 호출 실패 시 Laravel은 타임아웃(10초) 후 명확한 오류를 반환하고, 배치는 재시도한다.
 
@@ -128,18 +128,22 @@ A/B 테스트, 실제 SMS/푸시 발송, 감성 분석, 주간 리포트 자동 
 
 모든 워크스페이스 소유 테이블은 `workspace_id` 인덱스를 가진다.
 
-## 7. API 개요 (Laravel, prefix `/api/v1`)
+## 7. 라우트 개요 (Laravel)
 
-| 메서드 | 경로 | 설명 |
+화면은 Livewire 컴포넌트가 렌더링한다. 목록, 폼, 대시보드 상호작용은 Livewire 액션으로 처리하고 별도 JSON API는 만들지 않는다.
+
+| 경로 | 구현 | 설명 |
 |---|---|---|
-| POST | `/auth/login`, `/auth/logout` | 인증 |
-| GET/POST/PUT/DELETE | `/contacts`, `/contacts/import` | 고객 |
-| GET/POST/PUT/DELETE | `/segments`, `/segments/{id}/preview` | 세그먼트 |
-| GET/POST/PUT/DELETE | `/campaigns`, `/campaigns/{id}/send`, `/campaigns/{id}/schedule` | 캠페인 |
-| GET | `/dashboard/summary`, `/dashboard/timeseries`, `/campaigns/{id}/funnel` | 성과 |
-| POST | `/ai/copy` | 카피 생성(중계) |
-| POST | `/ai/clusters` | 클러스터 추천(중계) |
-| GET | `/t/o/{token}.gif`, `/t/c/{token}` | 오픈/클릭 추적 (인증 없음, 공개) |
+| `/login`, `/logout` | Blade + Auth | 인증 |
+| `/dashboard` | Livewire | KPI, 추이, 캠페인 비교 |
+| `/campaigns`, `/campaigns/create`, `/campaigns/{id}`, `/campaigns/{id}/edit` | Livewire | 캠페인 목록/생성/상세(퍼널)/편집 + AI 카피 패널 |
+| `/contacts`, `/contacts/import` | Livewire | 고객 목록, CSV 업로드 |
+| `/segments`, `/segments/create`, `/segments/{id}/edit` | Livewire | 세그먼트, 대상 수 미리보기, AI 추천 |
+| `/settings` | Livewire | 워크스페이스, 멤버 |
+| `GET /t/o/{token}.gif`, `GET /t/c/{token}` | 컨트롤러 | 오픈/클릭 추적 (인증 없음, 공개) |
+| `GET /up` | 프레임워크 | 헬스 체크 |
+
+AI 서비스 호출(카피 생성, 클러스터링)은 Livewire 액션에서 `AiClient` 서비스를 통해 수행한다.
 
 ## 8. AI 서비스 API (FastAPI)
 
@@ -150,7 +154,7 @@ A/B 테스트, 실제 SMS/푸시 발송, 감성 분석, 주간 리포트 자동 
 | POST | `/cluster` | 고객 RFM 배열, k -> 클러스터 라벨과 요약 |
 | GET | `/health` | 상태 확인 |
 
-## 9. 화면 목록 (Frontend)
+## 9. 화면 목록
 
 1. 로그인
 2. 대시보드(KPI, 추이, 캠페인 비교)
