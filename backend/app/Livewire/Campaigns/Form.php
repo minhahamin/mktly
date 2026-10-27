@@ -8,6 +8,7 @@ use App\Models\Contact;
 use App\Models\Segment;
 use App\Services\Ai\AiClient;
 use App\Services\Ai\AiUnavailableException;
+use App\Services\Ai\AiUsage;
 use App\Services\Campaigns\CampaignSender;
 use App\Services\Campaigns\MessageRenderer;
 use DomainException;
@@ -173,6 +174,13 @@ class Form extends Component
             'aiTarget.max' => '타겟은 200자 이하로 입력해 주세요.',
         ]);
 
+        // 일일 상한: 실제 모델 호출 횟수가 한도에 도달하면 더 이상 호출하지 않는다(비용 보호).
+        if (app(AiUsage::class)->copyRemainingToday() === 0) {
+            $this->aiError = '오늘 AI 카피 생성 한도를 모두 사용했습니다. 내일 다시 시도해 주세요.';
+
+            return;
+        }
+
         // AI 호출 비용을 보호하기 위해 사용자당 분당 10회로 제한한다.
         $key = 'ai-copy:'.auth()->id();
 
@@ -232,6 +240,13 @@ class Form extends Component
     public function recipientCount(): int
     {
         return app(CampaignSender::class)->recipientCount($this->draftCampaign());
+    }
+
+    /** 오늘 남은 AI 카피 생성 횟수. 한도가 설정되지 않았으면 null */
+    #[Computed]
+    public function aiRemaining(): ?int
+    {
+        return app(AiUsage::class)->copyRemainingToday();
     }
 
     /** 오늘 남은 이메일 발송 한도. 한도가 설정되지 않았으면 null */
