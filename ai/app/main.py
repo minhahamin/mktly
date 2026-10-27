@@ -1,14 +1,11 @@
-import os
+from fastapi import Depends, FastAPI
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from app.routers import analytics, copy
+from app.security import verify_internal_token
 
 app = FastAPI(title="Mktly AI Service")
-
-
-def verify_internal_token(x_internal_token: str | None = Header(default=None)) -> None:
-    expected = os.getenv("AI_INTERNAL_TOKEN", "")
-    if not expected or x_internal_token != expected:
-        raise HTTPException(status_code=401, detail="invalid internal token")
+app.include_router(copy.router)
+app.include_router(analytics.router)
 
 
 @app.get("/health")
