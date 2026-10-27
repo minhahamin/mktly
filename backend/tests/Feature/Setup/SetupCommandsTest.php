@@ -169,3 +169,61 @@ it('로컬에서는 기본 시더가 데모 데이터를 만든다', function ()
 
     expect(User::where('email', 'demo@example.test')->exists())->toBeTrue();
 });
+
+// ---- mktly:bootstrap 데모 데이터 -------------------------------------------------
+
+it('MKTLY_SEED_DEMO가 켜져 있으면 부팅 시 데모 데이터를 읽기 전용으로 만든다', function () {
+    config([
+        'mktly.admin' => ['name' => '대표', 'email' => 'boot@example.test', 'password' => 'bootstrap-pass-12', 'workspace' => '실제 스토어'],
+        'mktly.demo' => ['email' => 'demo@example.test', 'password' => 'public-demo-pw', 'seed' => true, 'role' => 'viewer'],
+    ]);
+
+    $this->artisan('mktly:bootstrap')->expectsOutputToContain('데모 데이터를 만들었습니다')->assertSuccessful();
+
+    $demo = User::where('email', 'demo@example.test')->firstOrFail();
+    $workspace = Workspace::where('name', 'Mktly 데모 스토어')->firstOrFail();
+
+    expect($workspace->users()->where('users.id', $demo->id)->first()->pivot->role)->toBe('viewer')
+        ->and(Contact::withoutGlobalScopes()->where('workspace_id', $workspace->id)->count())->toBe(1000)
+        // 실제 워크스페이스는 비어 있고 데모와 섞이지 않는다.
+        ->and(Contact::withoutGlobalScopes()->where('workspace_id', Workspace::where('name', '실제 스토어')->value('id'))->count())->toBe(0);
+});
+
+it('부팅을 여러 번 해도 데모 데이터를 중복으로 만들지 않는다', function () {
+    config(['mktly.admin' => ['name' => '대표', 'email' => null, 'password' => null, 'workspace' => 'x'],
+        'mktly.demo' => ['email' => 'demo@example.test', 'password' => 'public-demo-pw', 'seed' => true, 'role' => 'viewer']]);
+
+    $this->artisan('mktly:bootstrap')->assertSuccessful();
+    $this->artisan('mktly:bootstrap')->expectsOutputToContain('데모 계정이 이미 있어')->assertSuccessful();
+
+    expect(Workspace::where('name', 'Mktly 데모 스토어')->count())->toBe(1)->and(User::where('email', 'demo@example.test')->count())->toBe(1);
+});
+
+it('MKTLY_SEED_DEMO가 꺼져 있으면 데모 데이터를 만들지 않는다', function () {
+    config(['mktly.admin' => ['name' => '대표', 'email' => null, 'password' => null, 'workspace' => 'x'],
+        'mktly.demo' => ['email' => 'demo@example.test', 'password' => 'public-demo-pw', 'seed' => false, 'role' => 'viewer']]);
+
+    $this->artisan('mktly:bootstrap')->assertSuccessful();
+
+    expect(User::count())->toBe(0);
+});
+
+it('데모 비밀번호가 짧거나 역할이 잘못되면 부팅은 계속하고 만들지 않는다', function () {
+    config(['mktly.admin' => ['name' => '대표', 'email' => null, 'password' => null, 'workspace' => 'x'],
+        'mktly.demo' => ['email' => 'demo@example.test', 'password' => 'short', 'seed' => true, 'role' => 'viewer']]);
+    $this->artisan('mktly:bootstrap')->expectsOutputToContain('데모 데이터 생성 실패')->assertSuccessful();
+
+    config(['mktly.demo' => ['email' => 'demo@example.test', 'password' => 'public-demo-pw', 'seed' => true, 'role' => 'owner']]);
+    $this->artisan('mktly:bootstrap')->expectsOutputToContain('데모 데이터 생성 실패')->assertSuccessful();
+
+    expect(User::count())->toBe(0);
+});
+
+it('이미 사용자가 있어도 데모 데이터는 요청 시 만들 수 있다', function () {
+    User::factory()->create();
+    config(['mktly.demo' => ['email' => 'demo@example.test', 'password' => 'public-demo-pw', 'seed' => true, 'role' => 'viewer']]);
+
+    $this->artisan('mktly:bootstrap')->assertSuccessful();
+
+    expect(User::where('email', 'demo@example.test')->exists())->toBeTrue();
+});

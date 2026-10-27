@@ -6,6 +6,10 @@ return [
     'demo' => [
         'email' => env('MKTLY_DEMO_EMAIL', 'demo@mktly.test'),
         'password' => env('MKTLY_DEMO_PASSWORD', env('APP_ENV') === 'local' ? 'mktly-demo-1234' : null),
+        // true이면 `mktly:bootstrap`(배포 시 자동 실행)이 데모 계정이 없을 때 데모 데이터를 만든다.
+        'seed' => filter_var(env('MKTLY_SEED_DEMO', false), FILTER_VALIDATE_BOOLEAN),
+        // 공개 데모는 읽기 전용(viewer)을 권장한다. 마케터 이상이면 방문자가 메일 발송과 AI 호출을 할 수 있다.
+        'role' => env('MKTLY_DEMO_ROLE', 'viewer'),
     ],
 
     // 메일 제공업체(예: Brevo 무료 요금제는 하루 300통)의 일일 발송 한도. 비워 두면 제한하지 않는다.
