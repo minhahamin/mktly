@@ -102,12 +102,16 @@
                 <h2 class="mb-1 text-lg font-bold">내 계정</h2>
                 <p class="mb-4 text-sm text-ink-500">{{ auth()->user()->name }} · {{ auth()->user()->email }}</p>
 
+                @if (auth()->user()->is_demo)
+                    <p class="rounded-2xl bg-lavender-100/70 px-4 py-3 text-sm text-ink-700">데모 계정은 읽기 전용이라 비밀번호를 바꿀 수 없습니다.</p>
+                @else
                 <form wire:submit="changePassword" class="space-y-4" novalidate>
                     <x-glass.input label="현재 비밀번호" type="password" autocomplete="current-password" wire:model="currentPassword" :error="$errors->first('currentPassword')" />
                     <x-glass.input label="새 비밀번호 (8자 이상, 영문과 숫자)" type="password" autocomplete="new-password" wire:model="newPassword" :error="$errors->first('newPassword')" />
                     <x-glass.input label="새 비밀번호 확인" type="password" autocomplete="new-password" wire:model="newPasswordConfirmation" />
                     <x-glass.button type="submit" tint="lavender" wire:loading.attr="disabled" wire:target="changePassword">비밀번호 변경</x-glass.button>
                 </form>
+                @endif
             </x-glass.card>
 
             <x-glass.card>

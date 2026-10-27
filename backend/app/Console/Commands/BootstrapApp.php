@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\User;
+use App\Models\Workspace;
 use App\Services\Setup\AdminBootstrapper;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Console\Attributes\Description;
@@ -67,7 +68,10 @@ class BootstrapApp extends Command
             return;
         }
 
-        if (User::where('email', $email)->exists()) {
+        $existing = User::where('email', $email)->first();
+
+        if ($existing !== null) {
+            $this->markAsDemo($existing);
             $this->line('데모 계정이 이미 있어 데모 데이터를 만들지 않았습니다.');
 
             return;
@@ -75,5 +79,16 @@ class BootstrapApp extends Command
 
         $demo->seed($email, $password, $role);
         $this->info("데모 데이터를 만들었습니다: {$email} (역할: {$role})");
+    }
+
+    /** 데모 표시가 도입되기 전에 만든 데모 계정을 보정한다(데모 표시, 데모 워크스페이스의 실제 발송 끄기). */
+    private function markAsDemo(User $user): void
+    {
+        if (! $user->is_demo) {
+            $user->forceFill(['is_demo' => true])->save();
+            $this->line('기존 데모 계정에 데모 표시를 추가했습니다.');
+        }
+
+        Workspace::whereIn('id', $user->workspaces()->pluck('workspaces.id'))->update(['sending_enabled' => false]);
     }
 }

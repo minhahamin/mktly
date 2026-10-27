@@ -2,9 +2,11 @@
 
 namespace App\Livewire\Auth;
 
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Validate;
@@ -52,17 +54,65 @@ class Login extends Component
         $this->redirectIntended('/dashboard', navigate: true);
     }
 
-    public function fillDemo(): void
+    /** 비밀번호 없이 읽기 전용 데모 계정으로 입장한다. 데모 계정이 없거나 기능이 꺼져 있으면 404다. */
+    public function startDemo(): void
     {
-        abort_unless(app()->environment('local'), 404);
+        $user = $this->demoUser();
+        abort_unless($user, 404);
 
-        $this->email = config('mktly.demo.email');
-        $this->password = config('mktly.demo.password');
-        $this->resetErrorBag();
+        $key = 'demo-login|'.request()->ip();
+
+        if (RateLimiter::tooManyAttempts($key, 20)) {
+            $this->addError('email', '잠시 후 다시 시도해 주세요.');
+
+            return;
+        }
+
+        RateLimiter::hit($key, 60);
+
+        Auth::login($user);
+        session()->regenerate();
+
+        $this->redirect('/dashboard', navigate: true);
+    }
+
+    #[Computed]
+    public function demoAvailable(): bool
+    {
+        return $this->demoUser() !== null;
+    }
+
+    #[Computed]
+    public function signupEnabled(): bool
+    {
+        return (bool) config('mktly.signup.enabled');
     }
 
     public function render()
     {
         return view('livewire.auth.login');
+    }
+
+    /**
+     * 데모 입장에 쓸 계정. 기능이 켜져 있고 DB에 데모 표시(is_demo)된 계정이 있을 때만 돌려준다.
+     * 안전장치: 로컬이 아니면 읽기 전용(viewer) 계정만 허용한다. 실수로 마케터 이상이면 누구나 메일 발송과 AI 호출을 할 수 있기 때문이다.
+     */
+    private function demoUser(): ?User
+    {
+        if (! config('mktly.demo.login')) {
+            return null;
+        }
+
+        $user = User::query()->where('is_demo', true)->orderBy('id')->first();
+
+        if ($user === null) {
+            return null;
+        }
+
+        if (! app()->isLocal() && $user->roleInCurrentWorkspace() !== 'viewer') {
+            return null;
+        }
+
+        return $user;
     }
 }

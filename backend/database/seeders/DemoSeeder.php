@@ -38,8 +38,12 @@ class DemoSeeder extends Seeder
     {
         mt_srand(42);
 
+        // 데모 워크스페이스는 실제 메일을 보내지 못하게 하고(예제 주소로의 반송 방지), 계정에는 데모 표시를 한다.
         $workspace = Workspace::create(['name' => 'Mktly 데모 스토어']);
+        $workspace->forceFill(['sending_enabled' => false])->save();
+
         $user = User::create(['name' => '데모 마케터', 'email' => $email, 'password' => $password]);
+        $user->forceFill(['is_demo' => true])->save();
         $workspace->users()->attach($user->id, ['role' => $role]);
 
         $affinity = $this->seedContacts($workspace->id);

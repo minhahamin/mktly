@@ -34,15 +34,23 @@
                 <span wire:loading wire:target="login">확인 중...</span>
             </x-glass.button>
         </form>
+
+        @if ($this->demoAvailable)
+            <div class="my-6 flex items-center gap-3 text-xs text-ink-500" aria-hidden="true">
+                <span class="h-px flex-1 bg-line"></span>또는<span class="h-px flex-1 bg-line"></span>
+            </div>
+
+            <x-glass.button type="button" tint="lavender" size="lg" icon="eye" class="w-full" wire:click="startDemo" wire:loading.attr="disabled" wire:target="startDemo">
+                <span wire:loading.remove wire:target="startDemo">데모 계정으로 시작하기</span>
+                <span wire:loading wire:target="startDemo">입장 중...</span>
+            </x-glass.button>
+            <p class="mt-2 text-center text-xs text-ink-500">가입이나 로그인 없이 샘플 데이터를 읽기 전용으로 둘러볼 수 있어요.</p>
+        @endif
     </x-glass.card>
 
-    @if (app()->environment('local'))
-        <div class="glass mt-5 flex items-center justify-between gap-3 rounded-3xl px-5 py-4">
-            <div class="min-w-0">
-                <p class="text-sm font-semibold">데모 계정</p>
-                <p class="truncate text-xs text-ink-500">{{ config('mktly.demo.email') }}</p>
-            </div>
-            <x-glass.button type="button" tint="lavender" size="sm" wire:click="fillDemo">입력하기</x-glass.button>
-        </div>
+    @if ($this->signupEnabled)
+        <p class="mt-5 text-center text-sm text-ink-700">
+            아직 계정이 없나요? <a href="/register" class="focus-ring rounded font-semibold text-pink-700 hover:underline">회원가입</a>
+        </p>
     @endif
 </div>

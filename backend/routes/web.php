@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\TrackingController;
 use App\Livewire\Auth\Login;
+use App\Livewire\Auth\Register;
 use App\Livewire\Campaigns;
 use App\Livewire\Contacts;
 use App\Livewire\Dashboard;
@@ -19,6 +20,7 @@ Route::get('/t/c/{token}', [TrackingController::class, 'click'])->where('token',
 
 Route::middleware('guest')->group(function () {
     Route::livewire('/login', Login::class)->name('login');
+    Route::livewire('/register', Register::class)->name('register');
 });
 
 Route::middleware('auth')->group(function () {
@@ -55,7 +57,8 @@ Route::middleware('auth')->group(function () {
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect('/login');
+        // 데모 계정에서 "나만의 워크스페이스 만들기"를 누르면 로그아웃 후 회원가입 화면으로 보낸다(허용된 값만).
+        return redirect($request->input('next') === 'register' && config('mktly.signup.enabled') ? '/register' : '/login');
     })->name('logout');
 });
 

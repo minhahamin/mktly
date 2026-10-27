@@ -63,6 +63,19 @@
 
         {{-- 본문 --}}
         <main class="min-w-0 flex-1 px-4 pb-12 pt-6 sm:px-8 lg:pt-8">
+            @if (auth()->user()->is_demo)
+                <div class="glass tint-lavender mb-6 flex flex-wrap items-center justify-between gap-3 rounded-3xl px-5 py-3 text-sm" role="status">
+                    <span><strong>데모 계정</strong>으로 둘러보는 중입니다. 읽기 전용이라 데이터를 바꿀 수 없어요.</span>
+                    @if (config('mktly.signup.enabled'))
+                        <form method="POST" action="/logout">
+                            @csrf
+                            <input type="hidden" name="next" value="register">
+                            <button class="focus-ring glass-strong rounded-full px-4 py-1.5 text-xs font-semibold hover:brightness-105">나만의 워크스페이스 만들기</button>
+                        </form>
+                    @endif
+                </div>
+            @endif
+
             @if ($heading)
                 <div class="mb-8 flex flex-wrap items-center justify-between gap-4">
                     <h1 class="text-2xl font-bold tracking-tight sm:text-3xl">{{ $heading }}</h1>

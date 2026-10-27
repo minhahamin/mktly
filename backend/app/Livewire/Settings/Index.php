@@ -134,6 +134,9 @@ class Index extends Component
 
     public function changePassword(): void
     {
+        // 공개 데모 계정의 비밀번호를 방문자가 바꾸면 다른 방문자가 들어올 수 없게 된다.
+        abort_if(auth()->user()->is_demo, 403, '데모 계정은 비밀번호를 바꿀 수 없습니다.');
+
         $this->validate([
             'currentPassword' => ['required', 'current_password'],
             'newPassword' => ['required', Password::min(8)->letters()->numbers(), 'confirmed:newPasswordConfirmation', 'different:currentPassword'],

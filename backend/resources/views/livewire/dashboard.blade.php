@@ -1,4 +1,11 @@
 <div>
+    @if (session('welcome'))
+        <div class="glass tint-mint mb-6 rounded-3xl px-5 py-4 text-sm" role="status">
+            <p class="font-semibold">가입을 환영합니다!</p>
+            <p class="mt-1 text-ink-700">체험 모드로 시작했어요. 고객 추가, CSV 업로드, 세그먼트, 캠페인 작성과 AI 기능을 모두 써 볼 수 있고, 이메일은 실제로 발송되지 않습니다. 먼저 고객 화면에서 고객을 추가해 보세요.</p>
+        </div>
+    @endif
+
     <x-page-header title="대시보드" subtitle="캠페인 성과를 한눈에 확인하세요.">
         <div class="glass flex rounded-full p-1" role="group" aria-label="기간 선택">
             @foreach ([7 => '7일', 30 => '30일', 90 => '90일'] as $value => $text)
