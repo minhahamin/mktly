@@ -53,8 +53,10 @@ PHP 8.4, Laravel 13, Blade, Livewire 4, Alpine.js, Tailwind CSS v4, Chart.js, Vi
 
 ```
 php artisan migrate --seed       # 데모 데이터 포함
-php artisan queue:work           # 큐 워커
-php artisan schedule:work        # 스케줄러(로컬)
+php artisan queue:work           # 큐 워커 (docker compose의 queue 서비스가 실행)
+php artisan schedule:work        # 스케줄러 (docker compose의 scheduler 서비스가 실행)
+php artisan contacts:score-churn # 이탈 점수 갱신 잡 등록 (매일 03시 자동 실행)
+php artisan campaigns:dispatch-scheduled  # 예약 시각이 지난 캠페인 발송 (매분 자동 실행)
 npm run dev                      # Vite 개발 서버 (로컬 Node)
 npm run build                    # 프로덕션 에셋 빌드
 ./vendor/bin/pest                # 테스트
@@ -63,4 +65,10 @@ npm run build                    # 프로덕션 에셋 빌드
 
 ## 환경변수 (.env.example로만 공유)
 
-`DB_*`, `REDIS_*`, `MAIL_*`(Mailpit), `AI_SERVICE_URL`, `AI_INTERNAL_TOKEN`
+`DB_*`, `REDIS_*`, `MAIL_*`(Mailpit), `AI_SERVICE_URL`, `AI_INTERNAL_TOKEN`, `APP_TIMEZONE`(Asia/Seoul)
+
+## 주의
+
+- `docker-compose.yml`에서 `env_file`로 `.env`를 주입하지 않는다. 컨테이너 환경변수가 `phpunit.xml`의 sqlite 설정을 덮어써 테스트가 개발 DB를 초기화한다.
+- 컨테이너 안에서 `artisan`을 실행할 때는 작업 디렉터리를 `/var/www/html`로 지정한다(`-w /var/www/html`). 기본 작업 디렉터리는 `public`이다.
+- 새 Pest 헬퍼 함수는 파일 간 이름이 겹치면 치명적 오류가 나므로 파일별 접두사를 붙인다.
