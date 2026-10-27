@@ -6,6 +6,9 @@ cd /app
 php artisan migrate --force
 php artisan mktly:bootstrap
 
+# AI 서비스 연결과 토큰을 점검해 로그에 남긴다(실패해도 배포는 계속한다).
+php artisan mktly:ai-check || true
+
 # 설정, 라우트, 뷰를 미리 컴파일한다. 환경변수가 확정된 이 시점에 해야 한다.
 php artisan config:cache
 php artisan route:cache

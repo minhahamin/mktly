@@ -42,6 +42,28 @@ class AiClient
         return $this->post('/cluster', ['contacts' => $contacts, 'k' => $k]);
     }
 
+    /**
+     * AI 서비스 연결 상태를 점검한다.
+     *
+     * @return 'ok'|'unauthorized'|'unreachable' unauthorized는 서비스는 응답하지만 내부 토큰이 맞지 않는 경우
+     */
+    public function status(): string
+    {
+        try {
+            $http = Http::baseUrl(config('services.ai.url'))->timeout(10)->acceptJson();
+
+            if (! $http->get('/health')->successful()) {
+                return 'unreachable';
+            }
+
+            $ping = $http->withHeaders(['X-Internal-Token' => (string) config('services.ai.token')])->get('/ping');
+        } catch (ConnectionException) {
+            return 'unreachable';
+        }
+
+        return $ping->successful() ? 'ok' : 'unauthorized';
+    }
+
     /** @return array<string, mixed> */
     private function post(string $path, array $payload): array
     {
