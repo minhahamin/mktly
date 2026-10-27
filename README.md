@@ -55,7 +55,7 @@ PHP(Laravel)가 화면과 비즈니스 로직을, Python(FastAPI)이 AI 기능�
 | 데이터 | MySQL 8, Redis (큐, 캐시, 세션) |
 | AI 서비스 | Python 3.12, FastAPI, scikit-learn, pandas, Anthropic SDK |
 | 인프라 | Docker Compose (app, queue, scheduler, ai, mysql, redis, mailpit) |
-| 테스트 | Pest 185개 (Livewire 포함), pytest 45개 |
+| 테스트 | Pest 198개 (Livewire 포함), pytest 45개 |
 
 ## 실행 방법
 

@@ -68,15 +68,40 @@ railway variable set --service mktly-ai "AI_INTERNAL_TOKEN=<토큰>" "PORT=8001"
 railway variable set --service mktly-web "APP_NAME=Mktly" "APP_URL=https://..." ...
 ```
 
-### 메일 발송 (선택)
+### 메일 발송 (Brevo)
 
-`MAIL_*`을 설정하지 않으면 `MAIL_MAILER=log`로 동작해서 캠페인이 "발송 완료"로 기록되지만 메일은 로그에만 남습니다. 실제로 보내려면 SMTP 제공업체(Resend, Brevo 등)를 정하고 아래를 설정하세요.
+`MAIL_*`을 설정하지 않으면 `MAIL_MAILER=log`로 동작해서 캠페인이 "발송 완료"로 기록되지만 메일은 로그에만 남습니다. 실제로 보내려면 [Brevo](https://www.brevo.com)의 SMTP 릴레이를 씁니다.
 
+**Brevo에서 먼저 할 일**
+
+1. 계정을 만들고 **보내는 사람(Sender) 이메일 또는 도메인을 인증**합니다. 인증되지 않은 주소로는 발송이 거부됩니다.
+2. 대시보드의 **SMTP & API** 메뉴 > **SMTP** 탭에서 SMTP 로그인을 확인하고 **SMTP 키**를 만듭니다. API 키가 아니라 *SMTP 키*여야 합니다.
+
+**`mktly-web` 변수**
+
+| 변수 | 값 |
+|---|---|
+| `MAIL_MAILER` | `smtp` |
+| `MAIL_HOST` | `smtp-relay.brevo.com` |
+| `MAIL_PORT` | `587` (막혀 있으면 `2525`) |
+| `MAIL_SCHEME` | 비워 두거나 `smtp` (587은 STARTTLS). 465 포트를 쓸 때만 `smtps` |
+| `MAIL_USERNAME` | Brevo의 SMTP 로그인 |
+| `MAIL_PASSWORD` | 위에서 만든 SMTP 키 |
+| `MAIL_FROM_ADDRESS` | Brevo에서 인증한 보내는 사람 주소 |
+| `MAIL_FROM_NAME` | 보내는 사람 이름 (예: `Mktly`) |
+| `MKTLY_MAIL_DAILY_LIMIT` | 요금제의 일일 발송 한도. 무료 요금제는 하루 **300통**입니다(최신 값은 Brevo 도움말에서 확인). |
+
+`MKTLY_MAIL_DAILY_LIMIT`을 설정하면 오늘 남은 한도보다 대상이 많은 캠페인은 **발송 시작 전에** 막히고, 작성 화면에 남은 한도가 표시됩니다. 설정하지 않으면 Brevo 쪽에서 한도를 넘는 순간 발송이 실패합니다.
+
+**설정 확인**
+
+배포 후 테스트 메일을 한 통 보내 봅니다. 실패하면 원인 한 줄과 점검 안내가 나옵니다.
+
+```bash
+railway ssh --service mktly-web php artisan mktly:mail-test 내이메일@example.com
 ```
-MAIL_MAILER=smtp
-MAIL_HOST=...  MAIL_PORT=587  MAIL_USERNAME=...  MAIL_PASSWORD=...  MAIL_SCHEME=tls
-MAIL_FROM_ADDRESS=no-reply@내도메인
-```
+
+> **주의**: 시드 데이터의 고객 이메일은 `example.test` 같은 가짜 주소입니다. 데모 데이터가 있는 워크스페이스에서 메일 발송을 허용하면 존재하지 않는 주소로 보내져 반송(bounce)이 쌓이고 Brevo 계정 평판이 나빠질 수 있습니다. 그래서 공개 데모 계정은 읽기 전용(viewer)으로 만드는 것을 권장합니다. 실제 워크스페이스에는 본인 주소나 실제 고객 주소만 넣으세요.
 
 ## 4. 배포
 
@@ -114,5 +139,6 @@ railway ssh --service mktly-web php artisan mktly:demo --force
 
 - **재배포**: 위 `railway up` 명령을 다시 실행합니다.
 - **백업**: Railway MySQL 백업 기능을 확인해 두세요. 고객 데이터가 들어갑니다.
+- **메일 한도**: Brevo 무료 요금제는 하루 발송 한도가 있습니다. `MKTLY_MAIL_DAILY_LIMIT`로 미리 막아 두세요.
 - **AI 비용**: 카피 생성은 사용자당 분당 10회로 제한됩니다. 하루 상한과 예산 상한은 아직 없으므로 유료 키를 넣을 때는 AI 공급자 쪽에서 월 사용 한도를 함께 설정하세요.
 - **관리자 추가**: 설정 화면의 "멤버 추가"를 쓰거나 `railway ssh --service mktly-web php artisan mktly:create-admin --email=...` 을 사용합니다(비밀번호는 `MKTLY_ADMIN_PASSWORD` 환경변수로 전달).
