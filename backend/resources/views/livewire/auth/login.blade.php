@@ -36,8 +36,8 @@
         </form>
 
         @if ($this->demoAvailable)
-            <div class="my-6 flex items-center gap-3 text-xs text-ink-500" aria-hidden="true">
-                <span class="h-px flex-1 bg-line"></span>또는<span class="h-px flex-1 bg-line"></span>
+            <div class="mb-5 mt-7 flex items-center gap-3 text-xs text-ink-500" aria-hidden="true">
+                <span class="h-px flex-1 bg-ink-500/20"></span>또는<span class="h-px flex-1 bg-ink-500/20"></span>
             </div>
 
             <x-glass.button type="button" tint="lavender" size="lg" icon="eye" class="w-full" wire:click="startDemo" wire:loading.attr="disabled" wire:target="startDemo">
