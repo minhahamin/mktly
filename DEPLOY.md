@@ -107,15 +107,21 @@ railway ssh --service mktly-web php artisan mktly:mail-test 내이메일@example
 
 저장소 루트에서 실행합니다.
 
+먼저 `mktly-web`이 운영용 Dockerfile을 쓰도록 지정합니다. (CLI 업로드에서는 `railway.json`의 `dockerfilePath`가 적용되지 않아, 지정하지 않으면 개발용 `Dockerfile`로 빌드됩니다.)
+
 ```bash
+railway variable set --service mktly-web --skip-deploys "RAILWAY_DOCKERFILE_PATH=Dockerfile.prod"
+```
+
+```bash
+railway domain --service mktly-web          # 공개 주소 생성 후 APP_URL에 넣습니다 (AI 서비스에는 만들지 않습니다)
 railway up ai      --path-as-root --service mktly-ai  --ci
 railway up backend --path-as-root --service mktly-web --ci
-railway domain --service mktly-web          # 공개 주소 생성 (AI 서비스에는 만들지 않습니다)
 ```
 
 `mktly-web`은 시작할 때 자동으로 마이그레이션을 실행하고, 사용자가 한 명도 없고 `MKTLY_ADMIN_*`가 있으면 첫 관리자를 만듭니다(여러 번 실행해도 안전합니다).
 
-헬스체크는 `/up`(웹), `/health`(AI)입니다.
+헬스체크는 `/up`(웹), `/health`(AI)입니다. 웹의 부팅 로그(`railway logs --service mktly-web`)에서 `AI 서비스 연결 정상`이 보이면 사설 네트워크와 내부 토큰이 맞게 설정된 것입니다. 토큰이 다르면 `AI_INTERNAL_TOKEN`을 맞추라는 메시지가 나옵니다.
 
 ## 5. 배포 후 확인
 
@@ -125,12 +131,15 @@ railway domain --service mktly-web          # 공개 주소 생성 (AI 서비스
 
 ## 6. 공개 데모 데이터 (선택)
 
-배포 DB는 비어 있습니다. 포트폴리오 데모용 샘플 데이터는 **별도 워크스페이스**에 만들어서 실제 데이터와 섞이지 않게 합니다.
+배포 DB는 비어 있습니다. 포트폴리오 데모용 샘플 데이터는 **별도 워크스페이스**에 만들어서 실제 데이터와 섞이지 않게 합니다. 서버에 접속하지 않아도 되도록 환경변수로 켭니다. 부팅할 때 데모 계정이 없을 때만 한 번 만들고, 이후 재시작에서는 건너뜁니다.
 
 ```bash
-railway variable set --service mktly-web "MKTLY_DEMO_PASSWORD=<공개해도 되는 데모 비밀번호>"
-railway ssh --service mktly-web php artisan mktly:demo --force
+railway variable set --service mktly-web   "MKTLY_SEED_DEMO=true" "MKTLY_DEMO_EMAIL=demo@내도메인" "MKTLY_DEMO_PASSWORD=<공개해도 되는 데모 비밀번호>"
 ```
+
+변수를 바꾼 뒤 재배포하면 적용되고, 부팅 로그에 `데모 데이터를 만들었습니다`가 남습니다. 데모 계정 역할은 `MKTLY_DEMO_ROLE`(기본 `viewer`)로 바꿀 수 있습니다.
+
+서버에서 직접 실행하려면 `railway ssh`를 쓰는데, 먼저 SSH 키를 Railway 계정에 등록해야 합니다(`railway ssh keys add`). 등록하면 `railway ssh --service mktly-web php artisan mktly:demo --force`로도 만들 수 있습니다.
 
 - 데모 계정은 기본적으로 **읽기 전용(viewer)** 입니다. 마케터 이상으로 만들면 방문자가 메일 발송과 AI 호출을 할 수 있어 SMTP와 AI 비용이 발생할 수 있습니다.
 - 데모 비밀번호는 공개용이므로 관리자 비밀번호와 다르게 정하세요.
