@@ -143,3 +143,44 @@ def test_cluster_requires_enough_contacts(client, auth):
 @pytest.mark.parametrize("k", [1, 9, 0])
 def test_cluster_validates_k(client, auth, k):
     assert client.post("/cluster", headers=auth, json={"contacts": make_contacts(40), "k": k}).status_code == 422
+
+
+def grouped_contacts():
+    """뚜렷한 세 집단: 최근 구매 고액 / 구매 이력 없음 / 오래전 구매하고 반응 좋음."""
+    rng = np.random.default_rng(3)
+    rows = []
+
+    def add(n, make):
+        for _ in range(n):
+            rows.append({"id": len(rows) + 1, **make()})
+
+    add(60, lambda: {"recency_days": int(rng.integers(1, 20)), "tenure_days": 300, "total_spent": 900000,
+                     "received": 10, "opens": int(rng.integers(4, 7)), "clicks": 1})
+    add(60, lambda: {"recency_days": None, "tenure_days": 300, "total_spent": 0,
+                     "received": 10, "opens": int(rng.integers(0, 2)), "clicks": 0})
+    add(60, lambda: {"recency_days": int(rng.integers(100, 160)), "tenure_days": 300, "total_spent": 100000,
+                     "received": 10, "opens": int(rng.integers(8, 10)), "clicks": 5})
+    return rows
+
+
+def test_cluster_names_reflect_actual_characteristics(client, auth):
+    data = client.post("/cluster", headers=auth, json={"contacts": grouped_contacts(), "k": 3}).json()
+    by_name = {c["name"]: c for c in data["clusters"]}
+
+    assert "핵심 고객" in by_name and "휴면 고객" in by_name and "적극 반응 고객" in by_name
+    assert by_name["핵심 고객"]["avg_recency_days"] < 30 and by_name["핵심 고객"]["avg_spent"] > 500000
+    assert by_name["휴면 고객"]["avg_recency_days"] is None
+    assert by_name["적극 반응 고객"]["open_rate"] > 0.7
+
+
+def test_cluster_without_distinct_traits_gets_unique_descriptive_names(client, auth):
+    """모두 비슷한 고객이라 기준을 만족하는 클러스터가 없어도 이름이 겹치지 않고 설명이 있다."""
+    contacts = [
+        {"id": i, "recency_days": 50 + i % 3, "tenure_days": 200, "total_spent": 100000 + i, "received": 10, "opens": 4, "clicks": 1}
+        for i in range(1, 61)
+    ]
+
+    data = client.post("/cluster", headers=auth, json={"contacts": contacts, "k": 4}).json()
+    names = [c["name"] for c in data["clusters"]]
+
+    assert len(set(names)) == len(names) and all(c["description"] for c in data["clusters"])

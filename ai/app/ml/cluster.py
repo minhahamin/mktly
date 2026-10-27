@@ -37,7 +37,7 @@ def cluster_contacts(request: ClusterRequest) -> ClusterResponse:
         open_rate=("open_rate", "mean"),
         tenure=("tenure_days", "mean"),
     )
-    names = _name_clusters(stats)
+    names = _name_clusters(stats, df)
 
     clusters = []
     for cluster_id, row in stats.iterrows():
@@ -61,24 +61,65 @@ def cluster_contacts(request: ClusterRequest) -> ClusterResponse:
     )
 
 
-def _name_clusters(stats: pd.DataFrame) -> dict[int, tuple[str, str]]:
-    """클러스터 평균 지표의 상대 순위로 의미 있는 이름을 붙인다. 이미 쓴 이름은 다시 쓰지 않는다."""
+def _name_clusters(stats: pd.DataFrame, df: pd.DataFrame) -> dict[int, tuple[str, str]]:
+    """전체 평균 대비 편차(z-score)로 클러스터 특징을 판단해 이름을 붙인다.
+
+    기준을 실제로 만족하는 클러스터에만 이름을 주고, 나머지는 가장 두드러진 특징으로 이름을 만든다.
+    같은 이름이 겹치면 번호를 붙여 구분한다.
+    """
+    pop = {
+        "recency": (df["recency_filled"].mean(), df["recency_filled"].std(ddof=0) or 1.0),
+        "spent": (df["total_spent"].mean(), df["total_spent"].std(ddof=0) or 1.0),
+        "open": (df["open_rate"].mean(), df["open_rate"].std(ddof=0) or 1.0),
+        "tenure": (df["tenure_days"].mean(), df["tenure_days"].std(ddof=0) or 1.0),
+    }
+    column = {"recency": "avg_recency", "spent": "avg_spent", "open": "open_rate", "tenure": "tenure"}
+    z = pd.DataFrame({k: (stats[column[k]] - mean) / std for k, (mean, std) in pop.items()})
+
+    # (이름, 설명, 충족 조건, 우선순위 점수)
     rules = [
-        ("핵심 고객", "구매액이 높고 최근에도 구매한 고객", lambda s: s["avg_spent"].rank() - s["avg_recency"].rank()),
-        ("휴면 고객", "마지막 구매가 오래되었거나 구매 이력이 없는 고객", lambda s: s["avg_recency"].rank() + s["never_purchased"].rank()),
-        ("적극 반응 고객", "메일 오픈과 클릭 반응이 좋은 고객", lambda s: s["open_rate"].rank()),
-        ("신규 고객", "가입한 지 얼마 되지 않은 고객", lambda s: -s["tenure"].rank()),
+        ("휴면 고객", "마지막 구매가 오래되었거나 구매 이력이 없는 고객",
+         lambda r, c: r["recency"] >= 0.5 or stats.loc[c, "never_purchased"] >= 0.5,
+         lambda r, c: r["recency"] + stats.loc[c, "never_purchased"]),
+        ("핵심 고객", "최근에 구매했고 구매액도 높은 고객",
+         lambda r, c: r["recency"] <= -0.2 and r["spent"] >= 0.2,
+         lambda r, c: r["spent"] - r["recency"]),
+        ("적극 반응 고객", "메일 오픈과 클릭 반응이 좋은 고객",
+         lambda r, c: r["open"] >= 0.5,
+         lambda r, c: r["open"]),
+        ("신규 고객", "가입한 지 얼마 되지 않은 고객",
+         lambda r, c: r["tenure"] <= -0.5,
+         lambda r, c: -r["tenure"]),
     ]
 
     names: dict[int, tuple[str, str]] = {}
-    for title, description, score in rules:
-        for cluster_id in score(stats).sort_values(ascending=False).index:
-            if cluster_id not in names:
-                names[cluster_id] = (title, description)
-                break
+    for title, description, qualifies, score in rules:
+        candidates = [c for c in z.index if c not in names and qualifies(z.loc[c], c)]
+        if candidates:
+            best = max(candidates, key=lambda c: score(z.loc[c], c))
+            names[best] = (title, description)
 
-    for n, cluster_id in enumerate((c for c in stats.index if c not in names), start=1):
-        names[cluster_id] = (f"일반 고객 {n}", "뚜렷한 특징이 없는 일반 고객")
+    traits = {
+        ("recency", False): ("최근 구매 고객", "마지막 구매가 비교적 최근인 고객"),
+        ("recency", True): ("구매 공백 고객", "마지막 구매 이후 시간이 오래 지난 고객"),
+        ("spent", True): ("고액 고객", "누적 구매액이 높은 고객"),
+        ("spent", False): ("소액 고객", "누적 구매액이 낮은 고객"),
+        ("open", True): ("반응 좋은 고객", "메일 반응이 평균보다 좋은 고객"),
+        ("open", False): ("저반응 고객", "메일 반응이 평균보다 낮은 고객"),
+        ("tenure", True): ("장기 고객", "가입한 지 오래된 고객"),
+        ("tenure", False): ("가입 초기 고객", "가입한 지 얼마 되지 않은 고객"),
+    }
+    used = {title for title, _ in names.values()}
+
+    for cluster_id in (c for c in z.index if c not in names):
+        trait = z.loc[cluster_id].abs().idxmax()
+        title, description = traits[(trait, bool(z.loc[cluster_id, trait] > 0))]
+        if title in used:
+            n = 2
+            while f"{title} {n}" in used:
+                n += 1
+            title = f"{title} {n}"
+        used.add(title)
+        names[cluster_id] = (title, description)
 
     return names
-
