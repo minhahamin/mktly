@@ -36,8 +36,6 @@ services:
     build: ./backend
     working_dir: /var/www/html/public
     command: php -S 0.0.0.0:8000 -t . ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php
-    env_file:
-      - ./backend/.env
     environment:
       DB_HOST: mysql
       DB_PORT: 3306
