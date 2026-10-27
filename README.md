@@ -1,10 +1,33 @@
 # Mktly
 
+[![CI](https://github.com/minhahamin/mktly/actions/workflows/ci.yml/badge.svg)](https://github.com/minhahamin/mktly/actions/workflows/ci.yml)
+
 중소 비즈니스를 위한 **마케팅 자동화 + AI 인사이트 플랫폼**입니다. 고객 세그먼트를 만들고, 이메일 캠페인을 발송하고, 오픈과 클릭을 추적하고, AI로 카피를 쓰거나 이탈 위험 고객을 찾아냅니다.
 
 PHP(Laravel)가 화면과 비즈니스 로직을, Python(FastAPI)이 AI 기능을 맡는 **멀티 서비스 구조**로 만들었고, 외부 유료 서비스 없이 Docker만으로 전체가 재현됩니다.
 
 ![대시보드](docs/screenshots/dashboard.jpg)
+
+## 라이브 데모
+
+**https://mktly-web-production.up.railway.app**
+
+1. 로그인 화면의 **"데모 계정으로 시작하기"** 를 누르면 가입이나 비밀번호 없이 샘플 데이터(고객 1,000명, 캠페인 8개)를 **읽기 전용**으로 둘러볼 수 있습니다.
+2. 직접 써 보고 싶다면 **회원가입**으로 나만의 워크스페이스를 만드세요. 고객 추가, CSV 업로드, 세그먼트, 캠페인 작성, AI 카피와 AI 세그먼트 추천까지 모두 쓸 수 있습니다.
+
+| 둘러볼 곳 | 볼 수 있는 것 |
+|---|---|
+| 대시보드 | KPI, 일별 추이, 캠페인 비교, 사이드바의 AI 이탈 모델 성능(ROC 곡선) |
+| 고객 | 검색, 정렬, 이탈 위험 등급, CSV 업로드 형식 |
+| 세그먼트 | 조건 규칙과 대상 수 미리보기 |
+| 캠페인 상세 | 전환 퍼널과 링크별 클릭 |
+
+공개 서비스라서 안전장치를 두었습니다.
+
+- 데모 계정은 읽기 전용이고 비밀번호를 바꿀 수 없습니다.
+- 회원가입한 워크스페이스는 **체험 모드**로 시작합니다. 이메일은 실제로 발송되지 않습니다(스팸 남용 방지). SMS와 푸시는 모의 발송이라 체험할 수 있습니다.
+- 같은 IP의 가입은 시간당 5번, AI 카피 생성은 사용자당 분당 10회와 하루 상한이 있습니다.
+- 서버가 무료로 운영되는 개인 포트폴리오라 사용량이 많으면 응답이 느릴 수 있습니다.
 
 ## 주요 기능
 
@@ -55,7 +78,7 @@ PHP(Laravel)가 화면과 비즈니스 로직을, Python(FastAPI)이 AI 기능�
 | 데이터 | MySQL 8, Redis (큐, 캐시, 세션) |
 | AI 서비스 | Python 3.12, FastAPI, scikit-learn, pandas, Anthropic SDK |
 | 인프라 | Docker Compose (app, queue, scheduler, ai, mysql, redis, mailpit) |
-| 테스트 | Pest 198개 (Livewire 포함), pytest 45개 |
+| 테스트 | Pest 250개 (Livewire 포함), pytest 45개 |
 
 ## 실행 방법
 

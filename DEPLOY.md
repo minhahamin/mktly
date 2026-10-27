@@ -58,6 +58,9 @@ railway add --service mktly-web
 | `MKTLY_ADMIN_EMAIL` | 첫 관리자 이메일 |
 | `MKTLY_ADMIN_PASSWORD` | 첫 관리자 비밀번호 (**12자 이상**) |
 | `MKTLY_ADMIN_NAME` / `MKTLY_WORKSPACE_NAME` | (선택) 관리자 이름 / 워크스페이스 이름 |
+| `MKTLY_DEMO_LOGIN` | `true`이면 로그인 화면에 "데모 계정으로 시작하기" 버튼이 나타납니다(읽기 전용 데모 계정이 있을 때만). 운영 환경에서는 데모 계정 역할이 viewer가 아니면 버튼이 숨겨집니다. |
+| `MKTLY_SIGNUP_ENABLED` | 공개 회원가입 켜기/끄기 (기본 `true`) |
+| `MKTLY_AI_COPY_DAILY_LIMIT` | 하루에 실제 모델로 만들 수 있는 AI 카피 생성 횟수(전체 합계). **유료 API 키를 넣을 때 반드시 설정**하세요. 샘플 모드 결과는 세지 않습니다. |
 
 이미지에 이미 설정된 값(변경 불필요): `APP_ENV=production`, `APP_DEBUG=false`, `QUEUE_CONNECTION=database`, `CACHE_STORE=database`, `SESSION_DRIVER=database`, `LOG_CHANNEL=stderr`.
 
@@ -144,7 +147,19 @@ railway variable set --service mktly-web   "MKTLY_SEED_DEMO=true" "MKTLY_DEMO_EM
 - 데모 계정은 기본적으로 **읽기 전용(viewer)** 입니다. 마케터 이상으로 만들면 방문자가 메일 발송과 AI 호출을 할 수 있어 SMTP와 AI 비용이 발생할 수 있습니다.
 - 데모 비밀번호는 공개용이므로 관리자 비밀번호와 다르게 정하세요.
 
-## 7. 운영 메모
+## 7. 회원가입 운영
+
+공개 회원가입을 켜 두면 누구나 가입해 자기 워크스페이스를 만들 수 있습니다. 스팸 남용을 막기 위해 **새 워크스페이스는 이메일 실제 발송이 꺼진 체험 모드**로 시작합니다. 고객, 세그먼트, 캠페인 작성, SMS와 푸시(모의), AI 기능은 그대로 쓸 수 있습니다.
+
+신뢰하는 사용자에게 실제 발송을 열어 주려면 서버에서 명령을 실행합니다(`railway ssh` 키 등록이 필요합니다).
+
+```bash
+railway ssh --service mktly-web php artisan mktly:workspace-sending <워크스페이스 id> on
+```
+
+가입을 받고 싶지 않다면 `MKTLY_SIGNUP_ENABLED=false`로 끕니다. 이메일 인증과 비밀번호 찾기는 아직 없습니다.
+
+## 8. 운영 메모
 
 - **재배포**: 위 `railway up` 명령을 다시 실행합니다.
 - **백업**: Railway MySQL 백업 기능을 확인해 두세요. 고객 데이터가 들어갑니다.
