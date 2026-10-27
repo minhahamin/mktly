@@ -1,0 +1,82 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-mktly}
+      MYSQL_USER: ${DB_USERNAME:-mktly}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-mktly_secret}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_secret}
+    ports:
+      - "${MYSQL_HOST_PORT:-3307}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${DB_ROOT_PASSWORD:-root_secret}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_HOST_PORT:-6380}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "${MAILPIT_SMTP_HOST_PORT:-1125}:1025"
+      - "${MAILPIT_UI_HOST_PORT:-8125}:8025"
+
+  api:
+    build: ./backend
+    command: php artisan serve --host=0.0.0.0 --port=8000
+    env_file:
+      - ./backend/.env
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      REDIS_HOST: redis
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+      AI_SERVICE_URL: http://ai:8001
+    ports:
+      - "${API_HOST_PORT:-8100}:8000"
+    volumes:
+      - ./backend:/var/www/html
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  ai:
+    build: ./ai
+    environment:
+      AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:-dev-internal-token}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    ports:
+      - "${AI_HOST_PORT:-8101}:8001"
+    volumes:
+      - ./ai:/app
+
+  web:
+    build: ./frontend
+    command: npm run dev -- --hostname 0.0.0.0 --port 3000
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8100/api/v1}
+    ports:
+      - "${WEB_HOST_PORT:-3100}:3000"
+    volumes:
+      - ./frontend:/app
+      - web_node_modules:/app/node_modules
+    depends_on:
+      - api
+
+volumes:
+  mysql_data:
+  web_node_modules:
