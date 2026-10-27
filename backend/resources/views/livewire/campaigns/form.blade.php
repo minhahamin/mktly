@@ -28,6 +28,57 @@
             </x-glass.card>
 
             <x-glass.card strong>
+                <div class="mb-4 flex items-center justify-between gap-3">
+                    <h2 class="flex items-center gap-2 text-lg font-bold"><x-icon name="sparkles" :size="20" class="text-pink-600" /> AI 카피 도우미</h2>
+                    @if ($aiMock)
+                        <span class="rounded-full border border-lavender-400/50 bg-lavender-100 px-3 py-1 text-xs font-semibold">샘플 결과 (API 키 없음)</span>
+                    @endif
+                </div>
+
+                <div class="space-y-4">
+                    <x-glass.input label="제품 또는 서비스" wire:model="aiProduct" :error="$errors->first('aiProduct')" placeholder="예: 가을 신상 니트 컬렉션 20% 할인" maxlength="300" />
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <x-glass.input label="타겟 고객" wire:model="aiTarget" :error="$errors->first('aiTarget')" placeholder="예: 30대 직장인" maxlength="200" />
+                        <x-glass.select label="톤" wire:model="aiTone">
+                            <option value="friendly">친근하게</option>
+                            <option value="professional">전문적으로</option>
+                            <option value="playful">재치 있게</option>
+                            <option value="urgent">긴박하게</option>
+                        </x-glass.select>
+                    </div>
+
+                    <x-glass.button type="button" tint="lavender" icon="sparkles" wire:click="generateCopy" wire:loading.attr="disabled" wire:target="generateCopy">
+                        <span wire:loading.remove wire:target="generateCopy">AI로 작성</span>
+                        <span wire:loading wire:target="generateCopy">작성 중...</span>
+                    </x-glass.button>
+
+                    @if ($aiError)
+                        <p class="rounded-2xl bg-danger/10 px-4 py-3 text-sm text-danger" role="alert">{{ $aiError }}</p>
+                    @endif
+                </div>
+
+                @if ($aiSubjects)
+                    <div class="mt-6 border-t border-line pt-5">
+                        <h3 class="mb-2 text-sm font-semibold">제목 후보</h3>
+                        <ul class="space-y-2">
+                            @foreach ($aiSubjects as $i => $candidate)
+                                <li wire:key="ai-subject-{{ $i }}" class="flex items-center justify-between gap-3 rounded-2xl bg-white/70 px-4 py-2.5 text-sm">
+                                    <span class="min-w-0 break-words">{{ $candidate }}</span>
+                                    <button type="button" wire:click="useSubject({{ $i }})" class="focus-ring shrink-0 rounded-full border border-line px-3 py-1 text-xs font-semibold hover:bg-pink-100">사용</button>
+                                </li>
+                            @endforeach
+                        </ul>
+
+                        <div class="mb-2 mt-5 flex items-center justify-between">
+                            <h3 class="text-sm font-semibold">본문 초안</h3>
+                            <button type="button" wire:click="useBody" class="focus-ring rounded-full border border-line px-3 py-1 text-xs font-semibold hover:bg-pink-100">본문에 적용</button>
+                        </div>
+                        <p class="whitespace-pre-line rounded-2xl bg-white/70 px-4 py-3 text-sm">{{ $aiBody }}</p>
+                    </div>
+                @endif
+            </x-glass.card>
+
+            <x-glass.card strong>
                 <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
                     <h2 class="text-lg font-bold">내용</h2>
                     <p class="text-xs text-ink-500">변수: <code class="rounded bg-white/70 px-1.5 py-0.5">&#123;&#123;name&#125;&#125;</code> <code class="rounded bg-white/70 px-1.5 py-0.5">&#123;&#123;email&#125;&#125;</code></p>

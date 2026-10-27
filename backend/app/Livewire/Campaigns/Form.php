@@ -2,13 +2,17 @@
 
 namespace App\Livewire\Campaigns;
 
+use App\Models\AiGeneration;
 use App\Models\Campaign;
 use App\Models\Contact;
 use App\Models\Segment;
+use App\Services\Ai\AiClient;
+use App\Services\Ai\AiUnavailableException;
 use App\Services\Campaigns\CampaignSender;
 use App\Services\Campaigns\MessageRenderer;
 use DomainException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -35,6 +39,22 @@ class Form extends Component
     public string $scheduled_at = '';
 
     public bool $confirmingSend = false;
+
+    // AI 카피 도우미
+    public string $aiProduct = '';
+
+    public string $aiTarget = '';
+
+    public string $aiTone = 'friendly';
+
+    /** @var list<string> */
+    public array $aiSubjects = [];
+
+    public string $aiBody = '';
+
+    public bool $aiMock = false;
+
+    public ?string $aiError = null;
 
     public function mount(?Campaign $campaign = null): void
     {
@@ -127,6 +147,70 @@ class Form extends Component
         session()->flash('notice', '발송을 시작했습니다.');
 
         return $this->redirect('/campaigns/'.$campaign->id, navigate: true);
+    }
+
+    /** 제품/타겟 설명으로 제목 후보와 본문 초안을 생성한다. 결과는 사용자가 골라 적용할 때까지 폼에 반영되지 않는다. */
+    public function generateCopy(AiClient $ai): void
+    {
+        $this->authorize('create', Campaign::class);
+        $this->reset(['aiSubjects', 'aiBody', 'aiError', 'aiMock']);
+
+        $this->validate([
+            'aiProduct' => ['required', 'string', 'max:300'],
+            'aiTarget' => ['nullable', 'string', 'max:200'],
+            'aiTone' => ['required', Rule::in(['friendly', 'professional', 'playful', 'urgent'])],
+        ], [
+            'aiProduct.required' => '제품이나 서비스를 간단히 설명해 주세요.',
+            'aiProduct.max' => '설명은 300자 이하로 입력해 주세요.',
+            'aiTarget.max' => '타겟은 200자 이하로 입력해 주세요.',
+        ]);
+
+        // AI 호출 비용을 보호하기 위해 사용자당 분당 10회로 제한한다.
+        $key = 'ai-copy:'.auth()->id();
+
+        if (RateLimiter::tooManyAttempts($key, 10)) {
+            $this->aiError = RateLimiter::availableIn($key).'초 후에 다시 시도해 주세요.';
+
+            return;
+        }
+
+        RateLimiter::hit($key, 60);
+
+        $input = ['product' => trim($this->aiProduct), 'target' => trim($this->aiTarget), 'tone' => $this->aiTone, 'channel' => $this->channel];
+
+        try {
+            $result = $ai->generateCopy($input);
+        } catch (AiUnavailableException $e) {
+            $this->aiError = $e->getMessage();
+
+            return;
+        }
+
+        AiGeneration::create([
+            'user_id' => auth()->id(),
+            'type' => AiGeneration::TYPE_COPY,
+            'input' => $input,
+            'output' => $result,
+            'mock' => $result['mock'],
+        ]);
+
+        $this->aiSubjects = $result['subjects'];
+        $this->aiBody = $result['body'];
+        $this->aiMock = $result['mock'];
+    }
+
+    public function useSubject(int $index): void
+    {
+        if (isset($this->aiSubjects[$index])) {
+            $this->subject = $this->aiSubjects[$index];
+        }
+    }
+
+    public function useBody(): void
+    {
+        if ($this->aiBody !== '') {
+            $this->body = $this->aiBody;
+        }
     }
 
     #[Computed]
