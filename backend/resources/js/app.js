@@ -8,11 +8,11 @@ const withAlpha = (hex, alpha) => {
 };
 
 // 색상은 CSS 토큰 이름('pink-500')으로 받아 실제 값으로 변환한다.
-const buildConfig = ({ type, labels, datasets, suffix = '' }) => ({
+const buildConfig = ({ type, labels, datasets, suffix = '', xy = false, legend = true }) => ({
     type,
     data: {
         labels,
-        datasets: datasets.map(({ color, fill, ...rest }) => {
+        datasets: datasets.map(({ color, fill, dashed, ...rest }) => {
             const base = css(color);
 
             return {
@@ -22,9 +22,10 @@ const buildConfig = ({ type, labels, datasets, suffix = '' }) => ({
                 pointBackgroundColor: base,
                 pointRadius: 0,
                 pointHoverRadius: 5,
-                borderWidth: type === 'line' ? 2.5 : 0,
+                borderWidth: dashed ? 1.5 : type === 'line' ? 2.5 : 0,
+                borderDash: dashed ? [5, 4] : [],
                 borderRadius: type === 'bar' ? 8 : 0,
-                tension: 0.35,
+                tension: xy ? 0 : 0.35,
                 fill: Boolean(fill),
             };
         }),
@@ -35,6 +36,7 @@ const buildConfig = ({ type, labels, datasets, suffix = '' }) => ({
         interaction: { mode: 'index', intersect: false },
         plugins: {
             legend: {
+                display: legend,
                 position: 'bottom',
                 labels: { usePointStyle: true, boxWidth: 8, color: css('ink-700'), padding: 16 },
             },
@@ -45,15 +47,21 @@ const buildConfig = ({ type, labels, datasets, suffix = '' }) => ({
                 callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${ctx.formattedValue}${suffix}` },
             },
         },
-        scales: {
-            x: { grid: { display: false }, ticks: { color: css('ink-500'), maxTicksLimit: 10 } },
-            y: {
-                beginAtZero: true,
-                grid: { color: css('line') },
-                border: { display: false },
-                ticks: { color: css('ink-500'), callback: (v) => `${v}${suffix}` },
-            },
-        },
+        scales: xy
+            ? {
+                  // 좌표형 곡선(ROC): 두 축 모두 0~1 범위의 선형 축을 쓴다.
+                  x: { type: 'linear', min: 0, max: 1, grid: { display: false }, ticks: { color: css('ink-500'), stepSize: 0.5 } },
+                  y: { type: 'linear', min: 0, max: 1, grid: { color: css('line') }, border: { display: false }, ticks: { color: css('ink-500'), stepSize: 0.5 } },
+              }
+            : {
+                  x: { grid: { display: false }, ticks: { color: css('ink-500'), maxTicksLimit: 10 } },
+                  y: {
+                      beginAtZero: true,
+                      grid: { color: css('line') },
+                      border: { display: false },
+                      ticks: { color: css('ink-500'), callback: (v) => `${v}${suffix}` },
+                  },
+              },
     },
 });
 

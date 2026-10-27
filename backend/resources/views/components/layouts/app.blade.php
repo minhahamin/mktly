@@ -22,7 +22,7 @@
 
         {{-- 사이드바 --}}
         <div x-cloak x-show="open" class="fixed inset-0 z-40 bg-ink-900/20 lg:hidden" @click="open = false"></div>
-        <aside class="glass fixed inset-y-3 left-3 z-50 flex w-64 -translate-x-[120%] flex-col rounded-3xl p-4 transition-transform duration-200 lg:sticky lg:top-3 lg:h-[calc(100vh-1.5rem)] lg:translate-x-0"
+        <aside class="glass fixed inset-y-3 left-3 z-50 flex w-64 -translate-x-[120%] flex-col overflow-y-auto rounded-3xl p-4 transition-transform duration-200 lg:sticky lg:top-3 lg:h-[calc(100vh-1.5rem)] lg:translate-x-0"
                :class="{ 'translate-x-0': open }">
             <div class="flex items-center justify-between px-2 py-2">
                 <x-logo />
@@ -43,7 +43,9 @@
             </nav>
 
             @auth
-                <div class="glass-strong mt-4 flex items-center gap-3 rounded-2xl p-3">
+                <x-ai-model-card />
+
+                <div class="glass-strong mt-3 flex items-center gap-3 rounded-2xl p-3">
                     <span class="tint-pink grid size-9 place-items-center rounded-full border text-sm font-bold">{{ mb_substr(auth()->user()->name, 0, 1) }}</span>
                     <div class="min-w-0 flex-1">
                         <p class="truncate text-sm font-semibold">{{ auth()->user()->name }}</p>
