@@ -101,6 +101,7 @@ services:
     environment:
       AI_INTERNAL_TOKEN: ${AI_INTERNAL_TOKEN:-dev-internal-token}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-5-5}
     ports:
       - "${AI_HOST_PORT:-8101}:8001"
     volumes:
