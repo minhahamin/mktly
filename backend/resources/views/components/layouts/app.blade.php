@@ -70,4 +70,12 @@
             {{ $slot }}
         </main>
     </div>
+
+    {{-- 토스트: Livewire에서 dispatch('notify', message: '...')로 띄운다. --}}
+    <div x-data="{ show: false, message: '', timer: null }"
+         @notify.window="message = $event.detail.message; show = true; clearTimeout(timer); timer = setTimeout(() => show = false, 3200)"
+         x-cloak x-show="show" x-transition.opacity role="status" aria-live="polite"
+         class="glass-strong tint-pink fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-full px-6 py-3 text-sm font-semibold">
+        <span x-text="message"></span>
+    </div>
 </x-layouts.base>

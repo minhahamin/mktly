@@ -20,6 +20,8 @@ class User extends Authenticatable
 
     private int|false|null $workspaceIdCache = null;
 
+    private string|false|null $roleCache = null;
+
     public function workspaces(): BelongsToMany
     {
         return $this->belongsToMany(Workspace::class, 'workspace_user')->withPivot('role')->withTimestamps();
@@ -36,9 +38,12 @@ class User extends Authenticatable
 
     public function roleInCurrentWorkspace(): ?string
     {
-        $id = $this->currentWorkspaceId();
+        if ($this->roleCache === null) {
+            $id = $this->currentWorkspaceId();
+            $this->roleCache = $id ? ($this->workspaces()->where('workspaces.id', $id)->first()?->pivot->role ?? false) : false;
+        }
 
-        return $id ? $this->workspaces()->where('workspaces.id', $id)->first()?->pivot->role : null;
+        return $this->roleCache ?: null;
     }
 
     /**
