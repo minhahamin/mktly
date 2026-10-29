@@ -16,7 +16,7 @@
 | Frontend | Blade, Livewire 4, Alpine.js, Tailwind CSS v4, Chart.js (Vite 빌드) |
 | DB | MySQL 8 |
 | Cache/Queue | Redis |
-| AI 서비스 | Python 3.12, FastAPI, scikit-learn, pandas, Anthropic SDK |
+| AI 서비스 | Python 3.12, FastAPI, scikit-learn, pandas, httpx (Gemini, OpenAI REST) |
 | 인프라 | Docker Compose (app, ai, mysql, redis, mailpit) |
 | 테스트 | Pest(PHP, Livewire 테스트 포함), pytest(Python) |
 
@@ -80,9 +80,12 @@
 
 ### 4.4 AI 카피 생성 (Python)
 - 입력: 제품 설명, 타겟, 톤, 채널
-- 출력: 제목 후보 5개 + 본문 초안 (Anthropic API)
+- 출력: 제목 후보 5개 + 본문 초안
 - 결과를 캠페인 편집 화면에 한 번에 적용
-- API 키 없을 때는 고정 샘플을 반환하는 Mock 모드 지원
+- 공급자 순서: Gemini(무료 모델) -> OpenAI(유료) -> Mock. 키가 있는 공급자만 쓰고, 앞 공급자가 한도 초과(429), 5xx, 타임아웃이면 다음 공급자로 넘긴다. 인증 오류는 넘기지 않고 오류로 돌려준다.
+- 모든 키가 없으면 고정 샘플을 반환하는 Mock 모드로 동작한다.
+- 응답한 공급자(`gemini`/`openai`/`mock`)를 `ai_generations.provider`에 기록한다.
+- 비용 보호: 실제 모델 호출 일일 상한(`MKTLY_AI_COPY_DAILY_LIMIT`)과 OpenAI 전용 일일 상한(`MKTLY_AI_OPENAI_DAILY_LIMIT`)을 둔다. OpenAI 상한에 도달하면 OpenAI는 건너뛴다.
 
 ### 4.5 이탈/구매 가능성 예측 (Python)
 - RFM(최근성, 빈도, 금액) 기반 특징 생성
@@ -124,7 +127,7 @@ A/B 테스트, 실제 SMS/푸시 발송, 감성 분석, 주간 리포트 자동 
 | `campaign_messages` | id, campaign_id, contact_id, status, sent_at, opened_at |
 | `tracked_links` | id, campaign_id, token, target_url |
 | `events` | id, campaign_id, contact_id, type(open/click/conversion), link_id, created_at |
-| `ai_generations` | id, workspace_id, type, input(json), output(json), created_at |
+| `ai_generations` | id, workspace_id, type, input(json), output(json), provider, created_at |
 
 모든 워크스페이스 소유 테이블은 `workspace_id` 인덱스를 가진다.
 
@@ -197,7 +200,8 @@ MVP 범위(마일스톤 M0~M7)를 모두 구현했습니다. 설계 문서와 �
 | 세그먼트 규칙 | 조건 배열 | `{match: all/any, conditions: [...]}` (과거 형식도 읽을 수 있음) |
 | 세그먼트 조건 항목 | 구매액, 가입일, 마지막 구매일, 태그, 이탈 확률 | 위 항목 + AI 클러스터 번호 |
 | `campaign_messages` | 기본 컬럼 | 수신자 추적용 `token`, 실패 사유 `error` 추가 |
-| `ai_generations` | workspace_id, type, input, output | `user_id`, `mock` 추가 |
+| `ai_generations` | workspace_id, type, input, output | `user_id`, `mock`, 응답 공급자 `provider` 추가 |
+| AI 카피 공급자 | Anthropic API | Gemini 무료 -> OpenAI 유료 -> Mock 순서의 폴백 |
 | 이탈 예측 입력 | RFM | 구매 최근성은 라벨 정의에 쓰이므로 제외하고 구매액, 가입 기간, 메일 반응을 사용 |
 | 컨테이너 | web, api, ai, mysql, redis, mailpit | app, queue, scheduler, ai, mysql, redis, mailpit |
 

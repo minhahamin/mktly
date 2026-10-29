@@ -76,7 +76,7 @@ PHP(Laravel)가 화면과 비즈니스 로직을, Python(FastAPI)이 AI 기능�
 |---|---|
 | 백엔드 | PHP 8.4, Laravel 13, Livewire 4, Alpine.js, Tailwind CSS v4, Chart.js, Vite |
 | 데이터 | MySQL 8, Redis (큐, 캐시, 세션) |
-| AI 서비스 | Python 3.12, FastAPI, scikit-learn, pandas, Anthropic SDK |
+| AI 서비스 | Python 3.12, FastAPI, scikit-learn, pandas, httpx (Gemini, OpenAI REST) |
 | 인프라 | Docker Compose (app, queue, scheduler, ai, mysql, redis, mailpit) |
 | 테스트 | Pest 250개 (Livewire 포함), pytest 45개 |
 
@@ -112,13 +112,13 @@ cd backend && npm install && npm run build
 
 로컬에서는 `migrate --seed`가 데모 워크스페이스와 샘플 데이터를 자동으로 만듭니다. 데모 계정의 비밀번호가 저장소에 공개되어 있으므로 **로컬 환경(`APP_ENV=local`)에서만** 자동 시드되고, 다른 환경에서는 건너뜁니다.
 
-### AI 카피를 실제 Claude로 쓰려면
+### AI 카피를 실제 모델로 쓰려면
 
-루트에 `.env`를 만들고 키를 넣은 뒤 `docker compose up -d`를 다시 실행하세요. 키가 없으면 AI 서비스는 샘플 결과를 돌려주는 Mock 모드로 동작하고, 화면에 "샘플 결과" 표시가 나타납니다.
+루트에 `.env`를 만들고 키를 넣은 뒤 `docker compose up -d`를 다시 실행하세요. Gemini(무료)를 먼저 호출하고, 한도 초과나 서버 오류가 나면 OpenAI(유료)로 넘어갑니다. 키가 모두 없으면 AI 서비스는 샘플 결과를 돌려주는 Mock 모드로 동작하고, 화면에 "샘플 결과" 표시가 나타납니다.
 
 ```
-ANTHROPIC_API_KEY=여기에_키
-ANTHROPIC_MODEL=claude-sonnet-5-5   # 선택
+GEMINI_API_KEY=여기에_키
+OPENAI_API_KEY=여기에_키   # 선택
 ```
 
 ### 테스트
