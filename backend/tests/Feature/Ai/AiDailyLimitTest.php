@@ -8,10 +8,11 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Livewire;
 
-function limitGeneration(int $workspaceId, bool $mock, $createdAt = null): void
+function limitGeneration(int $workspaceId, bool $mock, $createdAt = null, ?string $provider = null): void
 {
     $record = AiGeneration::withoutGlobalScopes()->create([
         'workspace_id' => $workspaceId, 'type' => 'copy', 'input' => ['product' => 'x'], 'output' => ['subjects' => []], 'mock' => $mock,
+        'provider' => $provider ?? ($mock ? 'mock' : 'gemini'),
     ]);
     AiGeneration::withoutGlobalScopes()->whereKey($record->id)->update(['created_at' => $createdAt ?? now()]);
 }
@@ -86,4 +87,47 @@ it('한도가 없으면 남은 횟수 문구가 나타나지 않는다', functio
     config(['mktly.ai.copy_daily_limit' => null]);
 
     Livewire::actingAs($this->user)->test(Form::class)->assertDontSee('오늘 남은 생성');
+});
+
+it('OpenAI 상한을 설정하지 않으면 제한하지 않는다', function () {
+    config(['mktly.ai.openai_daily_limit' => null]);
+
+    expect(app(AiUsage::class)->openaiRemainingToday())->toBeNull();
+});
+
+it('오늘 OpenAI가 응답한 생성만 OpenAI 사용량으로 센다', function () {
+    config(['mktly.ai.openai_daily_limit' => 5]);
+
+    limitGeneration($this->workspace->id, mock: false, provider: 'openai');
+    limitGeneration($this->workspace->id, mock: false, provider: 'gemini');                      // 무료 Gemini는 제외
+    limitGeneration($this->workspace->id, mock: false, createdAt: now()->subDay(), provider: 'openai');   // 어제는 제외
+
+    expect(app(AiUsage::class)->openaiRemainingToday())->toBe(4);
+});
+
+it('응답한 공급자를 기록한다', function () {
+    Http::swap(new Factory);
+    Http::fake(['*/copy/generate' => Http::response(['subjects' => ['a'], 'body' => '본문', 'mock' => false, 'provider' => 'gemini'])]);
+
+    Livewire::actingAs($this->user)->test(Form::class)->set('aiProduct', '니트')->call('generateCopy')
+        ->assertSet('aiProvider', 'gemini')->assertSee('Gemini 응답');
+
+    expect(AiGeneration::withoutGlobalScopes()->latest('id')->first()->provider)->toBe('gemini');
+});
+
+it('OpenAI 상한에 도달하면 AI 서비스에 OpenAI를 건너뛰라고 알린다', function () {
+    config(['mktly.ai.openai_daily_limit' => 1]);
+    limitGeneration($this->workspace->id, mock: false, provider: 'openai');
+
+    Livewire::actingAs($this->user)->test(Form::class)->set('aiProduct', '니트')->call('generateCopy');
+
+    Http::assertSent(fn ($request) => $request['allow_openai'] === false);
+});
+
+it('OpenAI 상한 안이면 OpenAI 사용을 허용한다', function () {
+    config(['mktly.ai.openai_daily_limit' => 3]);
+
+    Livewire::actingAs($this->user)->test(Form::class)->set('aiProduct', '니트')->call('generateCopy');
+
+    Http::assertSent(fn ($request) => $request['allow_openai'] === true);
 });

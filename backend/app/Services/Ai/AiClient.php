@@ -13,11 +13,12 @@ class AiClient
      * 마케팅 카피(제목 후보 5개와 본문 초안)를 생성한다.
      *
      * @param  array{product: string, target?: string, tone?: string, channel?: string}  $payload
-     * @return array{subjects: list<string>, body: string, mock: bool}
+     * @param  bool  $allowOpenai  false이면 AI 서비스가 유료 OpenAI 호출을 건너뛴다(일일 상한 도달)
+     * @return array{subjects: list<string>, body: string, mock: bool, provider?: string}
      */
-    public function generateCopy(array $payload): array
+    public function generateCopy(array $payload, bool $allowOpenai = true): array
     {
-        return $this->post('/copy/generate', $payload);
+        return $this->post('/copy/generate', $payload + ['allow_openai' => $allowOpenai]);
     }
 
     /**

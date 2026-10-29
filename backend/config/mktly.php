@@ -29,6 +29,8 @@ return [
     // 비워 두면 제한하지 않는다. 유료 API 키를 넣을 때는 반드시 설정한다.
     'ai' => [
         'copy_daily_limit' => env('MKTLY_AI_COPY_DAILY_LIMIT') ? (int) env('MKTLY_AI_COPY_DAILY_LIMIT') : null,
+        // 유료 OpenAI 호출만 따로 세는 일일 상한. 도달하면 OpenAI는 건너뛰고 무료 Gemini만 쓴다. 비워 두면 제한하지 않는다.
+        'openai_daily_limit' => env('MKTLY_AI_OPENAI_DAILY_LIMIT') ? (int) env('MKTLY_AI_OPENAI_DAILY_LIMIT') : null,
     ],
 
     // 배포 후 첫 관리자 계정. 값이 모두 있고 사용자가 한 명도 없을 때만 `mktly:bootstrap`이 계정을 만든다.

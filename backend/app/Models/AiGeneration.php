@@ -6,12 +6,14 @@ use App\Models\Concerns\BelongsToWorkspace;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 
-#[Fillable(['workspace_id', 'user_id', 'type', 'input', 'output', 'mock'])]
+#[Fillable(['workspace_id', 'user_id', 'type', 'input', 'output', 'provider', 'mock'])]
 class AiGeneration extends Model
 {
     use BelongsToWorkspace;
 
     public const TYPE_COPY = 'copy';
+
+    public const PROVIDER_OPENAI = 'openai';
 
     protected function casts(): array
     {

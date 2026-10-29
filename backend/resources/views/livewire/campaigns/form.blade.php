@@ -32,6 +32,8 @@
                     <h2 class="flex items-center gap-2 text-lg font-bold"><x-icon name="sparkles" :size="20" class="text-pink-600" /> AI 카피 도우미</h2>
                     @if ($aiMock)
                         <span class="rounded-full border border-lavender-400/50 bg-lavender-100 px-3 py-1 text-xs font-semibold">샘플 결과 (API 키 없음)</span>
+                    @elseif ($aiProvider)
+                        <span class="rounded-full border border-line bg-white/70 px-3 py-1 text-xs">{{ ['gemini' => 'Gemini', 'openai' => 'OpenAI'][$aiProvider] ?? $aiProvider }} 응답</span>
                     @endif
                     @if ($this->aiRemaining !== null)
                         <span class="rounded-full border border-line bg-white/70 px-3 py-1 text-xs">오늘 남은 생성 {{ $this->aiRemaining }}회</span>

@@ -56,6 +56,8 @@ class Form extends Component
 
     public bool $aiMock = false;
 
+    public ?string $aiProvider = null;
+
     public ?string $aiError = null;
 
     public function mount(?Campaign $campaign = null): void
@@ -164,7 +166,7 @@ class Form extends Component
     public function generateCopy(AiClient $ai): void
     {
         $this->authorize('create', Campaign::class);
-        $this->reset(['aiSubjects', 'aiBody', 'aiError', 'aiMock']);
+        $this->reset(['aiSubjects', 'aiBody', 'aiError', 'aiMock', 'aiProvider']);
 
         $this->validate([
             'aiProduct' => ['required', 'string', 'max:300'],
@@ -197,24 +199,28 @@ class Form extends Component
         $input = ['product' => trim($this->aiProduct), 'target' => trim($this->aiTarget), 'tone' => $this->aiTone, 'channel' => $this->channel];
 
         try {
-            $result = $ai->generateCopy($input);
+            $result = $ai->generateCopy($input, allowOpenai: app(AiUsage::class)->openaiRemainingToday() !== 0);
         } catch (AiUnavailableException $e) {
             $this->aiError = $e->getMessage();
 
             return;
         }
 
+        $provider = $result['provider'] ?? ($result['mock'] ? 'mock' : null);
+
         AiGeneration::create([
             'user_id' => auth()->id(),
             'type' => AiGeneration::TYPE_COPY,
             'input' => $input,
             'output' => $result,
+            'provider' => $provider,
             'mock' => $result['mock'],
         ]);
 
         $this->aiSubjects = $result['subjects'];
         $this->aiBody = $result['body'];
         $this->aiMock = $result['mock'];
+        $this->aiProvider = $provider;
     }
 
     public function useSubject(int $index): void
