@@ -13,11 +13,15 @@ class Campaign extends Model
 {
     use BelongsToWorkspace;
 
+    /** 벡터는 크기가 커서 직렬화(JSON 응답, Livewire 상태)에 실리지 않게 한다. */
+    protected $hidden = ['embedding'];
+
     protected function casts(): array
     {
         return [
             'scheduled_at' => 'datetime',
             'sent_at' => 'datetime',
+            'embedding' => 'array',
         ];
     }
 

@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('campaigns:dispatch-scheduled')->everyMinute()->withoutOverlapping();
 Schedule::command('contacts:score-churn')->dailyAt('03:00');
+Schedule::command('mktly:embeddings:rebuild')->hourly()->withoutOverlapping();

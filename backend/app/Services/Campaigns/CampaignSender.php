@@ -2,6 +2,7 @@
 
 namespace App\Services\Campaigns;
 
+use App\Jobs\EmbedCampaign;
 use App\Jobs\SendCampaignChunk;
 use App\Models\Campaign;
 use App\Models\CampaignMessage;
@@ -13,6 +14,7 @@ use App\Services\Segments\SegmentRuleEngine;
 use DomainException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
+use Throwable;
 
 class CampaignSender
 {
@@ -150,13 +152,26 @@ class CampaignSender
         $total = CampaignMessage::where('campaign_id', $campaignId)->count();
         $failed = CampaignMessage::where('campaign_id', $campaignId)->where('status', 'failed')->count();
 
-        Campaign::withoutGlobalScopes()
+        $status = $total > 0 && $failed === $total ? 'failed' : 'sent';
+
+        $updated = Campaign::withoutGlobalScopes()
             ->whereKey($campaignId)
             ->where('status', 'sending')
-            ->update([
-                'status' => $total > 0 && $failed === $total ? 'failed' : 'sent',
-                'sent_at' => now(),
-            ]);
+            ->update(['status' => $status, 'sent_at' => now()]);
+
+        if ($updated && $status === 'sent') {
+            $this->queueEmbedding($campaignId);
+        }
+    }
+
+    /** AI 카피의 참고 자료로 쓸 임베딩을 만든다. 실패해도 발송 마감에는 영향이 없고, 나중에 `mktly:embeddings:rebuild`가 채운다. */
+    private function queueEmbedding(int $campaignId): void
+    {
+        try {
+            EmbedCampaign::dispatch($campaignId);
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     private function createTrackedLinks(Campaign $campaign): void

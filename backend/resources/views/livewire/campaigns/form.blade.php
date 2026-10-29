@@ -79,6 +79,19 @@
                             <button type="button" wire:click="useBody" class="focus-ring rounded-full border border-line px-3 py-1 text-xs font-semibold hover:bg-pink-100">본문에 적용</button>
                         </div>
                         <p class="whitespace-pre-line rounded-2xl bg-white/70 px-4 py-3 text-sm">{{ $aiBody }}</p>
+
+                        @if ($aiReferences)
+                            <h3 class="mb-2 mt-5 text-sm font-semibold">참고한 자료</h3>
+                            <p class="mb-2 text-xs text-ink-500">반응이 좋았던 과거 캠페인의 문체와 구성을 참고했습니다.</p>
+                            <ul class="space-y-2">
+                                @foreach ($aiReferences as $reference)
+                                    <li wire:key="ai-reference-{{ $reference['id'] }}" class="flex items-center justify-between gap-3 rounded-2xl bg-white/70 px-4 py-2.5 text-sm">
+                                        <a href="/campaigns/{{ $reference['id'] }}" target="_blank" rel="noopener" class="focus-ring min-w-0 break-words font-medium text-pink-700 hover:underline">{{ $reference['title'] }}</a>
+                                        <span class="shrink-0 rounded-full border border-line bg-white/70 px-3 py-1 text-xs">오픈율 {{ number_format($reference['open_rate'] * 100, 1) }}%</span>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @endif
                     </div>
                 @endif
             </x-glass.card>

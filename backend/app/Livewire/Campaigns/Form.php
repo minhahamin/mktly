@@ -10,6 +10,7 @@ use App\Models\Workspace;
 use App\Services\Ai\AiClient;
 use App\Services\Ai\AiUnavailableException;
 use App\Services\Ai\AiUsage;
+use App\Services\Ai\CopyExamples;
 use App\Services\Campaigns\CampaignSender;
 use App\Services\Campaigns\MessageRenderer;
 use DomainException;
@@ -57,6 +58,9 @@ class Form extends Component
     public bool $aiMock = false;
 
     public ?string $aiProvider = null;
+
+    /** @var list<array{id: int, title: string, open_rate: float}> 카피를 만들 때 참고한 과거 캠페인 */
+    public array $aiReferences = [];
 
     public ?string $aiError = null;
 
@@ -166,7 +170,7 @@ class Form extends Component
     public function generateCopy(AiClient $ai): void
     {
         $this->authorize('create', Campaign::class);
-        $this->reset(['aiSubjects', 'aiBody', 'aiError', 'aiMock', 'aiProvider']);
+        $this->reset(['aiSubjects', 'aiBody', 'aiError', 'aiMock', 'aiProvider', 'aiReferences']);
 
         $this->validate([
             'aiProduct' => ['required', 'string', 'max:300'],
@@ -198,12 +202,25 @@ class Form extends Component
 
         $input = ['product' => trim($this->aiProduct), 'target' => trim($this->aiTarget), 'tone' => $this->aiTone, 'channel' => $this->channel];
 
+        $usage = app(AiUsage::class);
+        $examples = app(CopyExamples::class)->candidates();
+
         try {
-            $result = $ai->generateCopy($input, allowOpenai: app(AiUsage::class)->openaiRemainingToday() !== 0);
+            $result = $ai->generateCopy(
+                $input,
+                allowOpenai: $usage->openaiRemainingToday() !== 0,
+                examples: $examples,
+                allowExternalEmbedding: $usage->embedRemainingToday() !== 0,
+            );
         } catch (AiUnavailableException $e) {
             $this->aiError = $e->getMessage();
 
             return;
+        }
+
+        // 쿼리 임베딩에 외부 공급자를 썼다면 임베딩 일일 사용량에 더한다.
+        if (in_array($result['embedding_provider'] ?? null, ['gemini', 'openai'], true)) {
+            $usage->recordEmbedding();
         }
 
         $provider = $result['provider'] ?? ($result['mock'] ? 'mock' : null);
@@ -221,6 +238,32 @@ class Form extends Component
         $this->aiBody = $result['body'];
         $this->aiMock = $result['mock'];
         $this->aiProvider = $provider;
+        $this->aiReferences = $this->displayReferences($result['references'] ?? [], $examples);
+    }
+
+    /**
+     * 화면에 보여 줄 참고 자료. 우리가 보낸 후보에 있던 캠페인만 남겨, AI 서비스 응답이 다른 id를 끼워 넣어도 링크로 노출되지 않게 한다.
+     *
+     * @param  list<array<string, mixed>>  $references
+     * @param  list<array<string, mixed>>  $examples
+     * @return list<array{id: int, title: string, open_rate: float}>
+     */
+    private function displayReferences(array $references, array $examples): array
+    {
+        $sent = array_column($examples, null, 'id');
+        $shown = [];
+
+        foreach ($references as $reference) {
+            $id = $reference['id'] ?? null;
+
+            if (! is_int($id) || ! isset($sent[$id])) {
+                continue;
+            }
+
+            $shown[] = ['id' => $id, 'title' => (string) $sent[$id]['subject'], 'open_rate' => (float) $sent[$id]['open_rate']];
+        }
+
+        return $shown;
     }
 
     public function useSubject(int $index): void
