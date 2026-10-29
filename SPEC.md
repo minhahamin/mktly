@@ -16,7 +16,7 @@
 | Frontend | Blade, Livewire 4, Alpine.js, Tailwind CSS v4, Chart.js (Vite 빌드) |
 | DB | MySQL 8 |
 | Cache/Queue | Redis |
-| AI 서비스 | Python 3.12, FastAPI, scikit-learn, pandas, numpy, httpx (Gemini, OpenAI REST, 임베딩 포함) |
+| AI 서비스 | Python 3.12, FastAPI, scikit-learn, pandas, numpy, Pillow, httpx (Gemini, OpenAI REST, 임베딩, 이미지 포함) |
 | 인프라 | Docker Compose (app, ai, mysql, redis, mailpit) |
 | 테스트 | Pest(PHP, Livewire 테스트 포함), pytest(Python) |
 
@@ -109,6 +109,23 @@
 - 비용 보호: 임베딩 외부 호출 일일 상한(`MKTLY_AI_EMBED_DAILY_LIMIT`)을 둔다. 상한에 도달하면 해시 벡터로 저장한다.
 - 로컬 임베딩 모델(sentence-transformers 등)은 쓰지 않는다. 이미지 크기와 상주 메모리가 커서 배포(Railway) 비용이 늘기 때문이다.
 
+### 4.10 카드뉴스/대표 이미지 생성 (Python + Laravel)
+- 용도: 카드뉴스(여러 장)와 블로그 대표 이미지(1장)를 만든다. 블로그 글 자체를 생성하지는 않는다.
+- 입력: 주제/제품 설명, 타겟, 톤, 종류(카드뉴스 3~6장 또는 대표 이미지 1장), 비율(1:1, 4:5, 16:9).
+- 2단계로 진행한다.
+  1. 초안: 슬라이드별 제목과 본문을 만든다. 4.4의 공급자 폴백(Gemini -> OpenAI -> Mock)과 참고 자료(4.7, 4.8)를 그대로 재사용한다. 제목 20자, 본문 60자 이내.
+  2. 렌더: 사용자가 문구를 수정한 뒤 PNG로 그린다.
+- 글자는 항상 서버가 그린다. 이미지 모델에는 글자 없는 배경만 요청한다(모델이 그린 한글은 깨지기 쉽기 때문). 폰트는 저장소에 포함한 오픈 라이선스 한글 폰트(Pretendard 또는 Noto Sans KR)를 쓴다.
+- 배경은 혼합 방식이다.
+  - 키가 있으면 Gemini 이미지 모델(`GEMINI_IMAGE_MODEL`)로 글자 없는 파스텔 배경 삽화를 1개 만들어 한 세트의 모든 장이 공유한다(장마다 크롭/위치만 달리한다).
+  - 키가 없거나 한도 초과, 실패, 안전 필터 차단이면 템플릿 배경(파스텔 핑크 그라데이션 + 라벤더/피치/민트 blob)으로 대체한다. 이 경우에도 결과물은 항상 나온다.
+  - OpenAI 이미지 API는 장당 비용이 커서 쓰지 않는다.
+- 응답한 배경 공급자(`gemini`/`template`)를 기록하고 화면에 표시한다.
+- 이모지를 이미지에 넣지 않는다. 장식은 도형과 선으로만 한다.
+- 결과 PNG는 Laravel이 받아 `public` 디스크에 저장하고, `/images`에서 목록, 미리보기, 개별 다운로드와 전체 ZIP 다운로드를 제공한다. 이메일 본문에 자동 삽입하지는 않는다(추적/호스팅 범위 밖).
+- 비용 보호: Gemini 배경 호출 일일 상한(`MKTLY_AI_IMAGE_DAILY_LIMIT`). 세트당 배경 호출은 최대 1회다. 무료 한도와 모델명은 자주 바뀌므로 구현 시점에 확인한다.
+- 권한: `admin`, `marketer`는 생성/삭제, `viewer`는 조회만 가능하다.
+
 ### 4.5 이탈/구매 가능성 예측 (Python)
 - RFM(최근성, 빈도, 금액) 기반 특징 생성
 - 로지스틱 회귀 또는 랜덤 포레스트로 이탈 확률 산출
@@ -152,6 +169,7 @@ A/B 테스트, 실제 SMS/푸시 발송, 감성 분석, 주간 리포트 자동 
 | `ai_generations` | id, workspace_id, type, input(json), output(json), provider, created_at |
 | `brand_documents` | id, workspace_id, title, content, created_by, created_at |
 | `brand_chunks` | id, workspace_id, brand_document_id, position, content, embedding(json, nullable), embedding_provider(nullable) |
+| `generated_images` | id, workspace_id, user_id, ai_generation_id, set_uuid, kind(cardnews/cover), slide_index, ratio, path, width, height, background_provider, created_at |
 
 모든 워크스페이스 소유 테이블은 `workspace_id` 인덱스를 가진다.
 
@@ -167,6 +185,7 @@ A/B 테스트, 실제 SMS/푸시 발송, 감성 분석, 주간 리포트 자동 
 | `/contacts`, `/contacts/import` | Livewire | 고객 목록, CSV 업로드 |
 | `/segments`, `/segments/create`, `/segments/{id}/edit` | Livewire | 세그먼트, 대상 수 미리보기, AI 추천 |
 | `/brand-documents`, `/brand-documents/create` | Livewire | 브랜드 문서 목록, 등록, 삭제 |
+| `/images`, `/images/create` | Livewire | 생성한 이미지 세트 목록, 카드뉴스/대표 이미지 생성(초안 수정 후 렌더), 다운로드 |
 | `/settings` | Livewire | 워크스페이스, 멤버 |
 | `GET /t/o/{token}.gif`, `GET /t/c/{token}` | 컨트롤러 | 오픈/클릭 추적 (인증 없음, 공개) |
 | `GET /up` | 프레임워크 | 헬스 체크 |
@@ -179,6 +198,8 @@ AI 서비스 호출(카피 생성, 클러스터링)은 Livewire 액션에서 `Ai
 |---|---|---|
 | POST | `/copy/generate` | 제품/타겟/톤 + 선택 입력(후보 캠페인, 브랜드 조각) -> 제목 후보, 본문, `references` |
 | POST | `/embed` | 텍스트 배열 -> 256차원 벡터 배열과 `provider` |
+| POST | `/cardnews/draft` | 주제/타겟/톤/장수 + 선택 참고 자료 -> 슬라이드별 제목, 본문, `references` |
+| POST | `/cardnews/render` | 슬라이드 문구, 비율 -> PNG(base64) 배열과 `background_provider` |
 | POST | `/predict/churn` | 고객 RFM 배열 -> 고객별 확률 |
 | POST | `/cluster` | 고객 RFM 배열, k -> 클러스터 라벨과 요약 |
 | GET | `/health` | 상태 확인 |
@@ -192,6 +213,7 @@ AI 서비스 호출(카피 생성, 클러스터링)은 Livewire 액션에서 `Ai
 5. 세그먼트 목록 / 편집(규칙 빌더, 대상 수 미리보기, AI 추천)
 6. 설정(워크스페이스, 멤버)
 7. 브랜드 문서 목록 / 등록 (M10)
+8. 이미지 세트 목록 / 카드뉴스 생성 (M11, M12)
 
 ## 10. 마일스톤
 
@@ -213,6 +235,8 @@ MVP 이후 확장(RAG):
 | M8 | 임베딩 기반: `/embed`, 공급자 폴백, 해시 벡터, 유사도 검색, 일일 상한 | 키 없이 pytest 통과, 공급자별 폴백 테스트 |
 | M9 | 성과 기반 참고: 캠페인 임베딩 Job, 후보 전달, 카피 패널의 참고 자료 표시 | 시드 데이터로 유사 캠페인이 `references`에 표시 |
 | M10 | 브랜드 문서: 등록, 조각 분할, 임베딩 Job, 카피 프롬프트 반영 | 다른 워크스페이스 문서가 섞이지 않음(Pest 검증) |
+| M11 | 카드뉴스: 초안 생성, 템플릿 배경 렌더(Pillow, 한글 폰트), 저장과 다운로드 | 키 없이 PNG 생성, 글자가 영역을 넘지 않음 |
+| M12 | Gemini 배경 삽화 선택 기능, 실패 시 템플릿 폴백, 일일 상한 | 키 유무와 실패 상황 모두에서 결과물이 나옴(pytest) |
 
 각 마일스톤은 기능 단위로 커밋하고 푸시한다.
 
@@ -242,7 +266,7 @@ MVP 범위(마일스톤 M0~M7)를 모두 구현했습니다. 설계 문서와 �
 | 이탈 예측 입력 | RFM | 구매 최근성은 라벨 정의에 쓰이므로 제외하고 구매액, 가입 기간, 메일 반응을 사용 |
 | 컨테이너 | web, api, ai, mysql, redis, mailpit | app, queue, scheduler, ai, mysql, redis, mailpit |
 
-M8~M10(RAG)은 MVP 이후 확장으로 4.4, 4.7~4.9에 정의했고 아직 구현하지 않았습니다.
+M8~M10(RAG)과 M11~M12(이미지 생성)는 MVP 이후 확장으로 4.4, 4.7~4.10에 정의했고 아직 구현하지 않았습니다.
 
 ### 알려진 한계
 
