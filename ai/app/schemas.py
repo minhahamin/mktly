@@ -6,12 +6,38 @@ MAX_CONTACTS = 20_000
 MAX_EMBED_TEXT = 4_000
 
 
+EmbeddingProvider = Literal["gemini", "openai", "hash"]
+MAX_COPY_EXAMPLES = 100
+
+
+class CopyExample(BaseModel):
+    """참고 후보로 Laravel이 보내는 과거 캠페인. 같은 워크스페이스의 것만 보낸다."""
+
+    id: int
+    subject: str = Field(max_length=300)
+    body: str = Field(max_length=2000)
+    open_rate: float = Field(ge=0, le=1)
+    click_rate: float = Field(default=0, ge=0, le=1)
+    vector: list[float] = Field(min_length=1, max_length=1024)
+    embedding_provider: EmbeddingProvider
+
+
+class CopyReference(BaseModel):
+    kind: Literal["campaign"]
+    id: int
+    title: str
+    open_rate: float
+    score: float = Field(description="제품 설명과의 코사인 유사도")
+
+
 class CopyRequest(BaseModel):
     product: str = Field(min_length=1, max_length=300, description="제품/서비스 설명")
     target: str = Field(default="", max_length=200, description="타겟 고객")
     tone: Literal["friendly", "professional", "playful", "urgent"] = "friendly"
     channel: Literal["email", "sms", "push"] = "email"
     allow_openai: bool = Field(default=True, description="False면 유료 OpenAI 호출을 건너뛴다(일일 상한 도달 시 Laravel이 지정)")
+    examples: list[CopyExample] = Field(default_factory=list, max_length=MAX_COPY_EXAMPLES, description="참고 후보(고성과 과거 캠페인). 비어 있으면 참고 없이 생성한다")
+    allow_external_embedding: bool = Field(default=True, description="False면 쿼리 임베딩에 외부 호출을 쓰지 않는다(임베딩 일일 상한 도달 시 Laravel이 지정)")
 
 
 class CopyResponse(BaseModel):
@@ -19,6 +45,8 @@ class CopyResponse(BaseModel):
     body: str
     mock: bool = Field(description="True면 LLM 호출 없이 만든 샘플 결과")
     provider: Literal["gemini", "openai", "mock"] = Field(description="응답을 만든 공급자")
+    references: list[CopyReference] = Field(default_factory=list, description="프롬프트에 참고로 넣은 자료")
+    embedding_provider: EmbeddingProvider | None = Field(default=None, description="쿼리 임베딩을 만든 공급자. 검색을 하지 않았으면 null")
 
 
 class EmbedRequest(BaseModel):
@@ -37,7 +65,7 @@ class EmbedRequest(BaseModel):
 
 class EmbedResponse(BaseModel):
     vectors: list[list[float]]
-    provider: Literal["gemini", "openai", "hash"] = Field(description="벡터를 만든 공급자. 같은 공급자의 벡터끼리만 비교할 수 있다")
+    provider: EmbeddingProvider = Field(description="벡터를 만든 공급자. 같은 공급자의 벡터끼리만 비교할 수 있다")
     dimensions: int
 
 
