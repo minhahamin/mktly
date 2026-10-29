@@ -10,12 +10,14 @@ class CopyRequest(BaseModel):
     target: str = Field(default="", max_length=200, description="타겟 고객")
     tone: Literal["friendly", "professional", "playful", "urgent"] = "friendly"
     channel: Literal["email", "sms", "push"] = "email"
+    allow_openai: bool = Field(default=True, description="False면 유료 OpenAI 호출을 건너뛴다(일일 상한 도달 시 Laravel이 지정)")
 
 
 class CopyResponse(BaseModel):
     subjects: list[str]
     body: str
     mock: bool = Field(description="True면 LLM 호출 없이 만든 샘플 결과")
+    provider: Literal["gemini", "openai", "mock"] = Field(description="응답을 만든 공급자")
 
 
 class ContactFeatures(BaseModel):

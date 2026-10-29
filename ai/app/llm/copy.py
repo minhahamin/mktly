@@ -1,4 +1,4 @@
-"""마케팅 카피 생성. ANTHROPIC_API_KEY가 없으면 LLM 호출 없이 샘플을 돌려준다(Mock 모드)."""
+"""마케팅 카피 생성. Gemini(무료), OpenAI(유료) 순서로 시도하고, 키가 모두 없으면 샘플을 돌려준다(Mock 모드)."""
 
 import json
 import logging
@@ -6,11 +6,17 @@ import os
 import re
 from collections.abc import Callable
 
+import httpx
+
 from app.schemas import CopyRequest, CopyResponse
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL = "claude-sonnet-5-5"
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+OPENAI_URL = "https://api.openai.com/v1/chat/completions"
+DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
+REQUEST_TIMEOUT = 25.0
 SUBJECT_COUNT = 5
 
 TONE_LABEL = {
@@ -50,23 +56,56 @@ def strip_emoji(text: str) -> str:
     return _EMOJI_PATTERN.sub("", text).strip()
 
 
-def generate_copy(request: CopyRequest, client_factory: Callable[[], object] | None = None) -> CopyResponse:
-    api_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
+class ProviderError(Exception):
+    """공급자 호출 실패. retryable이면 다음 공급자로 넘길 수 있다(한도 초과, 서버 오류, 타임아웃, 쓸 수 없는 응답)."""
 
-    if not api_key:
+    def __init__(self, message: str, retryable: bool) -> None:
+        super().__init__(message)
+        self.retryable = retryable
+
+
+def generate_copy(request: CopyRequest, http_client: httpx.Client | None = None) -> CopyResponse:
+    """Gemini(무료) -> OpenAI(유료) -> Mock 순서로 시도한다. 키가 있는 공급자만 쓴다."""
+    gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
+    openai_key = os.getenv("OPENAI_API_KEY", "").strip()
+
+    if not gemini_key and not openai_key:
         return _mock(request)
 
-    if client_factory is None:
-        import anthropic
+    user_prompt = _user_prompt(request)
+    providers: list[tuple[str, Callable[[httpx.Client], str]]] = []
 
-        def client_factory() -> object:
-            return anthropic.Anthropic(api_key=api_key, timeout=25.0, max_retries=1)
+    if gemini_key:
+        providers.append(("gemini", lambda client: _call_gemini(client, gemini_key, user_prompt)))
 
-    return _call_llm(request, client_factory())
+    if openai_key and request.allow_openai:
+        providers.append(("openai", lambda client: _call_openai(client, openai_key, user_prompt)))
+
+    if not providers:
+        raise CopyGenerationError("오늘 AI 카피 생성 한도를 모두 사용했습니다. 내일 다시 시도해 주세요.")
+
+    client = http_client or httpx.Client(timeout=REQUEST_TIMEOUT)
+
+    try:
+        for name, call in providers:
+            try:
+                return _parse(call(client), name)
+            except ProviderError as exc:
+                logger.warning("AI 공급자 호출 실패: %s (다음 공급자로 넘김=%s)", name, exc.retryable)
+
+                if not exc.retryable:
+                    raise CopyGenerationError("AI 서비스 인증 또는 요청 설정에 문제가 있습니다. 운영자에게 문의해 주세요.") from exc
+            except CopyGenerationError:
+                logger.warning("AI 공급자 응답을 사용할 수 없음: %s", name)
+    finally:
+        if http_client is None:
+            client.close()
+
+    raise CopyGenerationError("AI 응답을 받지 못했습니다. 잠시 후 다시 시도해 주세요.")
 
 
-def _call_llm(request: CopyRequest, client: object) -> CopyResponse:
-    user_prompt = (
+def _user_prompt(request: CopyRequest) -> str:
+    return (
         f"톤: {TONE_LABEL[request.tone]}\n"
         f"채널 규칙: {CHANNEL_RULE[request.channel]}\n"
         f"<product>{request.product}</product>\n"
@@ -74,22 +113,68 @@ def _call_llm(request: CopyRequest, client: object) -> CopyResponse:
         f"제목 후보 {SUBJECT_COUNT}개와 본문 초안 1개를 작성하세요."
     )
 
+
+def _post(client: httpx.Client, url: str, headers: dict[str, str], payload: dict) -> dict:
+    """공급자 REST 호출. 오류 메시지에 키나 응답 본문을 담지 않는다."""
     try:
-        message = client.messages.create(  # type: ignore[attr-defined]
-            model=os.getenv("ANTHROPIC_MODEL", DEFAULT_MODEL),
-            max_tokens=1200,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_prompt}],
-        )
-    except Exception as exc:  # SDK 예외 종류가 많아 한 곳에서 묶어 처리한다.
-        logger.warning("LLM 호출 실패: %s", type(exc).__name__)
-        raise CopyGenerationError("AI 응답을 받지 못했습니다. 잠시 후 다시 시도해 주세요.") from exc
+        response = client.post(url, headers=headers, json=payload)
+    except httpx.HTTPError as exc:  # 타임아웃, 연결 오류
+        raise ProviderError("network", retryable=True) from exc
 
-    text = "".join(getattr(block, "text", "") for block in message.content)
-    return _parse(text)
+    if response.status_code == 429 or response.status_code >= 500:
+        raise ProviderError(f"http {response.status_code}", retryable=True)
+
+    if response.status_code >= 400:
+        raise ProviderError(f"http {response.status_code}", retryable=False)
+
+    try:
+        return response.json()
+    except ValueError as exc:
+        raise ProviderError("invalid json", retryable=True) from exc
 
 
-def _parse(text: str) -> CopyResponse:
+def _call_gemini(client: httpx.Client, api_key: str, user_prompt: str) -> str:
+    model = os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
+    data = _post(
+        client,
+        GEMINI_URL.format(model=model),
+        {"x-goog-api-key": api_key},
+        {
+            "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+            "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
+            "generationConfig": {"maxOutputTokens": 4096, "responseMimeType": "application/json"},
+        },
+    )
+
+    try:
+        return "".join(part.get("text", "") for part in data["candidates"][0]["content"]["parts"])
+    except (KeyError, IndexError, TypeError, AttributeError) as exc:  # 안전 필터 차단 등으로 후보가 없는 경우
+        raise ProviderError("empty response", retryable=True) from exc
+
+
+def _call_openai(client: httpx.Client, api_key: str, user_prompt: str) -> str:
+    data = _post(
+        client,
+        OPENAI_URL,
+        {"Authorization": f"Bearer {api_key}"},
+        {
+            "model": os.getenv("OPENAI_MODEL", DEFAULT_OPENAI_MODEL),
+            "max_completion_tokens": 1200,
+            "response_format": {"type": "json_object"},
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+        },
+    )
+
+    try:
+        return data["choices"][0]["message"]["content"] or ""
+    except (KeyError, IndexError, TypeError) as exc:
+        raise ProviderError("empty response", retryable=True) from exc
+
+
+def _parse(text: str, provider: str) -> CopyResponse:
     match = re.search(r"\{.*\}", text, flags=re.DOTALL)
 
     if not match:
@@ -107,7 +192,7 @@ def _parse(text: str) -> CopyResponse:
     if not subjects or not body:
         raise CopyGenerationError("AI 응답이 비어 있습니다.")
 
-    return CopyResponse(subjects=subjects, body=body, mock=False)
+    return CopyResponse(subjects=subjects, body=body, mock=False, provider=provider)
 
 
 def _mock(request: CopyRequest) -> CopyResponse:
@@ -141,4 +226,4 @@ def _mock(request: CopyRequest) -> CopyResponse:
         body = f"{{{{name}}}}님, {product} 소식이 도착했습니다."[:limit]
         subjects = [s[:20] for s in subjects]
 
-    return CopyResponse(subjects=subjects, body=body, mock=True)
+    return CopyResponse(subjects=subjects, body=body, mock=True, provider="mock")

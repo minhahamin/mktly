@@ -9,7 +9,8 @@ TOKEN = "test-token"
 @pytest.fixture(autouse=True)
 def internal_token(monkeypatch):
     monkeypatch.setenv("AI_INTERNAL_TOKEN", TOKEN)
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
 
 @pytest.fixture
