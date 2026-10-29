@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 MAX_CONTACTS = 20_000
 MAX_EMBED_TEXT = 4_000
@@ -142,3 +142,62 @@ class ClusterSummary(BaseModel):
 class ClusterResponse(BaseModel):
     assignments: list[ClusterAssignment]
     clusters: list[ClusterSummary]
+
+
+SLIDE_TITLE_MAX = 20
+SLIDE_BODY_MAX = 60
+MAX_SLIDES = 6
+
+
+class CardSlide(BaseModel):
+    title: str = Field(min_length=1, max_length=SLIDE_TITLE_MAX)
+    body: str = Field(default="", max_length=SLIDE_BODY_MAX)
+
+
+class CardnewsDraftRequest(BaseModel):
+    topic: str = Field(min_length=1, max_length=300, description="주제/제품 설명")
+    target: str = Field(default="", max_length=200, description="타겟 고객")
+    tone: Literal["friendly", "professional", "playful", "urgent"] = "friendly"
+    kind: Literal["cardnews", "cover"] = "cardnews"
+    slide_count: int = Field(default=5, ge=3, le=MAX_SLIDES, description="카드뉴스 장수. 대표 이미지(cover)는 항상 1장")
+    allow_openai: bool = True
+    examples: list[CopyExample] = Field(default_factory=list, max_length=MAX_COPY_EXAMPLES)
+    brand_chunks: list[BrandChunk] = Field(default_factory=list, max_length=MAX_BRAND_CHUNKS)
+    allow_external_embedding: bool = True
+
+
+class CardnewsDraftResponse(BaseModel):
+    slides: list[CardSlide]
+    mock: bool
+    provider: Literal["gemini", "openai", "mock"]
+    references: list[CopyReference] = Field(default_factory=list)
+    embedding_provider: EmbeddingProvider | None = None
+
+
+class CardnewsRenderRequest(BaseModel):
+    kind: Literal["cardnews", "cover"] = "cardnews"
+    ratio: Literal["1:1", "4:5", "16:9"] = "1:1"
+    slides: list[CardSlide] = Field(min_length=1, max_length=MAX_SLIDES)
+    seed: str = Field(default="", max_length=64, description="같은 값이면 같은 배경이 나온다")
+
+    @model_validator(mode="after")
+    def slide_count_matches_kind(self) -> "CardnewsRenderRequest":
+        if self.kind == "cover" and len(self.slides) != 1:
+            raise ValueError("대표 이미지는 1장만 만들 수 있습니다.")
+
+        if self.kind == "cardnews" and len(self.slides) < 3:
+            raise ValueError("카드뉴스는 3장 이상이어야 합니다.")
+
+        return self
+
+
+class RenderedImage(BaseModel):
+    index: int
+    width: int
+    height: int
+    png_base64: str
+
+
+class CardnewsRenderResponse(BaseModel):
+    images: list[RenderedImage]
+    background_provider: Literal["gemini", "template"]

@@ -1,10 +1,11 @@
 from fastapi import Depends, FastAPI
 
-from app.routers import analytics, copy, embed
+from app.routers import analytics, cardnews, copy, embed
 from app.security import verify_internal_token
 
 app = FastAPI(title="Mktly AI Service")
 app.include_router(copy.router)
+app.include_router(cardnews.router)
 app.include_router(embed.router)
 app.include_router(analytics.router)
 
