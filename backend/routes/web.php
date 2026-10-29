@@ -3,6 +3,7 @@
 use App\Http\Controllers\TrackingController;
 use App\Livewire\Auth\Login;
 use App\Livewire\Auth\Register;
+use App\Livewire\BrandDocuments;
 use App\Livewire\Campaigns;
 use App\Livewire\Contacts;
 use App\Livewire\Dashboard;
@@ -49,6 +50,9 @@ Route::middleware('auth')->group(function () {
     Route::livewire('/segments/suggest', Segments\Suggest::class)->name('segments.suggest');
     Route::livewire('/segments/create', Segments\Form::class)->name('segments.create');
     Route::livewire('/segments/{segment}/edit', Segments\Form::class)->name('segments.edit');
+
+    Route::livewire('/brand-documents', BrandDocuments\Index::class)->name('brand-documents.index');
+    Route::livewire('/brand-documents/create', BrandDocuments\Create::class)->name('brand-documents.create');
 
     Route::livewire('/settings', Settings\Index::class)->name('settings');
 

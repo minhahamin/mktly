@@ -6,6 +6,7 @@
         ['href' => '/campaigns', 'match' => 'campaigns*', 'icon' => 'megaphone', 'label' => '캠페인'],
         ['href' => '/contacts', 'match' => 'contacts*', 'icon' => 'users', 'label' => '고객'],
         ['href' => '/segments', 'match' => 'segments*', 'icon' => 'layers', 'label' => '세그먼트'],
+        ['href' => '/brand-documents', 'match' => 'brand-documents*', 'icon' => 'file', 'label' => '브랜드 문서'],
         ['href' => '/settings', 'match' => 'settings*', 'icon' => 'settings', 'label' => '설정'],
     ];
 @endphp

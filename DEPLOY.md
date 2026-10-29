@@ -43,6 +43,8 @@ railway add --service mktly-web
 | `GEMINI_MODEL` | (선택) 기본 `gemini-2.5-flash` |
 | `OPENAI_API_KEY` | (선택) 유료 OpenAI용. Gemini가 한도 초과나 오류일 때 넘어간다 |
 | `OPENAI_MODEL` | (선택) 기본 `gpt-4o-mini` |
+| `GEMINI_EMBED_MODEL` | (선택) 참고 자료 검색용 임베딩 모델. 기본 `gemini-embedding-001` |
+| `OPENAI_EMBED_MODEL` | (선택) 기본 `text-embedding-3-small` |
 
 두 키가 모두 없으면 카피 생성은 샘플 결과로 동작합니다. 유료 키를 넣을 때는 `mktly-web`의 `MKTLY_AI_OPENAI_DAILY_LIMIT`로 하루 호출 상한을 함께 설정하세요. 참고 자료 검색용 임베딩의 외부 호출 상한은 `MKTLY_AI_EMBED_DAILY_LIMIT`이며, 도달하면 외부 호출 없이 로컬 해시 벡터를 씁니다.
 
@@ -135,6 +137,8 @@ railway up backend --path-as-root --service mktly-web --ci
 1. 주소로 접속해 `MKTLY_ADMIN_EMAIL` 계정으로 로그인합니다.
 2. 고객 화면에서 "이탈 점수 갱신"을 눌러 AI 서비스 연결을 확인합니다(고객이 없으면 먼저 CSV로 추가).
 3. 캠페인 작성 화면의 "AI로 작성"으로 카피 생성을 확인합니다.
+4. (참고 자료 검색) "브랜드 문서"에 짧은 문서를 등록하고, 목록에서 "검색 가능"으로 바뀐 뒤 "AI로 작성"을 하면 결과 아래에 "참고한 자료"가 나옵니다. 임베딩은 큐 워커가 처리하므로 `mktly-web`에서 큐 워커가 돌고 있어야 합니다.
+5. 이미 발송한 캠페인(데모 데이터 포함)을 참고 자료로 쓰려면 임베딩이 필요합니다. 매시간 자동으로 채워지고, 바로 채우려면 `railway ssh --service mktly-web php artisan mktly:embeddings:rebuild`를 실행합니다. 임베딩 공급자를 바꾼 뒤에는 `--all`을 붙여 다시 만듭니다.
 
 ## 6. 공개 데모 데이터 (선택)
 

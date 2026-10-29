@@ -8,6 +8,7 @@ MAX_EMBED_TEXT = 4_000
 
 EmbeddingProvider = Literal["gemini", "openai", "hash"]
 MAX_COPY_EXAMPLES = 100
+MAX_BRAND_CHUNKS = 200
 
 
 class CopyExample(BaseModel):
@@ -22,11 +23,21 @@ class CopyExample(BaseModel):
     embedding_provider: EmbeddingProvider
 
 
-class CopyReference(BaseModel):
-    kind: Literal["campaign"]
+class BrandChunk(BaseModel):
+    """참고 후보로 Laravel이 보내는 브랜드 문서 조각. 같은 워크스페이스의 것만 보낸다."""
+
     id: int
-    title: str
-    open_rate: float
+    document_title: str = Field(max_length=200)
+    content: str = Field(min_length=1, max_length=1000)
+    vector: list[float] = Field(min_length=1, max_length=1024)
+    embedding_provider: EmbeddingProvider
+
+
+class CopyReference(BaseModel):
+    kind: Literal["campaign", "brand"]
+    id: int
+    title: str = Field(description="캠페인은 제목, 브랜드 문서는 문서 제목")
+    open_rate: float | None = Field(default=None, description="캠페인일 때만 있다")
     score: float = Field(description="제품 설명과의 코사인 유사도")
 
 
@@ -37,6 +48,7 @@ class CopyRequest(BaseModel):
     channel: Literal["email", "sms", "push"] = "email"
     allow_openai: bool = Field(default=True, description="False면 유료 OpenAI 호출을 건너뛴다(일일 상한 도달 시 Laravel이 지정)")
     examples: list[CopyExample] = Field(default_factory=list, max_length=MAX_COPY_EXAMPLES, description="참고 후보(고성과 과거 캠페인). 비어 있으면 참고 없이 생성한다")
+    brand_chunks: list[BrandChunk] = Field(default_factory=list, max_length=MAX_BRAND_CHUNKS, description="브랜드 문서 조각 후보. 비어 있으면 브랜드 지침 없이 생성한다")
     allow_external_embedding: bool = Field(default=True, description="False면 쿼리 임베딩에 외부 호출을 쓰지 않는다(임베딩 일일 상한 도달 시 Laravel이 지정)")
 
 

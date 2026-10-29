@@ -169,7 +169,7 @@ it('카피 생성 요청에 후보를 담고 참고한 자료를 보여 준다',
 
     Livewire::actingAs($this->user)->test(Form::class)
         ->set('aiProduct', '니트')->call('generateCopy')
-        ->assertSet('aiReferences', [['id' => $campaign->id, 'title' => '가을 신상 코트 단독', 'open_rate' => 0.5]])
+        ->assertSet('aiReferences', [['kind' => 'campaign', 'id' => $campaign->id, 'title' => '가을 신상 코트 단독', 'open_rate' => 0.5]])
         ->assertSee('참고한 자료')->assertSee('가을 신상 코트 단독')->assertSee('오픈율 50.0%')
         ->assertDontSee('끼워 넣은 캠페인')->assertDontSee('가짜 제목');
 
