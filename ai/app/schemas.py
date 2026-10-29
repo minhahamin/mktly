@@ -1,8 +1,9 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 MAX_CONTACTS = 20_000
+MAX_EMBED_TEXT = 4_000
 
 
 class CopyRequest(BaseModel):
@@ -18,6 +19,26 @@ class CopyResponse(BaseModel):
     body: str
     mock: bool = Field(description="True면 LLM 호출 없이 만든 샘플 결과")
     provider: Literal["gemini", "openai", "mock"] = Field(description="응답을 만든 공급자")
+
+
+class EmbedRequest(BaseModel):
+    texts: list[str] = Field(min_length=1, max_length=64, description="임베딩할 텍스트")
+    allow_openai: bool = Field(default=True, description="False면 유료 OpenAI 호출을 건너뛴다")
+    allow_external: bool = Field(default=True, description="False면 외부 호출 없이 해시 벡터를 만든다(임베딩 일일 상한 도달 시 Laravel이 지정)")
+
+    @field_validator("texts")
+    @classmethod
+    def texts_are_bounded(cls, texts: list[str]) -> list[str]:
+        if any(not text.strip() or len(text) > MAX_EMBED_TEXT for text in texts):
+            raise ValueError(f"각 텍스트는 비어 있지 않고 {MAX_EMBED_TEXT}자 이하여야 합니다.")
+
+        return texts
+
+
+class EmbedResponse(BaseModel):
+    vectors: list[list[float]]
+    provider: Literal["gemini", "openai", "hash"] = Field(description="벡터를 만든 공급자. 같은 공급자의 벡터끼리만 비교할 수 있다")
+    dimensions: int
 
 
 class ContactFeatures(BaseModel):
