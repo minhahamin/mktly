@@ -7,6 +7,7 @@ use App\Models\Campaign;
 use App\Models\CampaignEvent;
 use App\Models\CampaignMessage;
 use App\Models\Contact;
+use App\Services\Ai\AiClient;
 use App\Services\Ai\AiUsage;
 use App\Services\Ai\CopyExamples;
 use App\Services\Campaigns\CampaignSender;
@@ -119,7 +120,7 @@ it('제목과 본문을 임베딩해 공급자와 함께 저장한다', function
     Http::fake(['ai.test/embed' => Http::response(['vectors' => [[0.123456789, 0.2]], 'provider' => 'gemini', 'dimensions' => 256])]);
     $campaign = ragCampaign($this->workspace->id, ['subject' => '가을 코트', 'body' => '소식입니다'], sent: 30, embedding: null);
 
-    (new EmbedCampaign($campaign->id))->handle(app(\App\Services\Ai\AiClient::class));
+    (new EmbedCampaign($campaign->id))->handle(app(AiClient::class));
 
     $fresh = Campaign::withoutGlobalScopes()->find($campaign->id);
     expect($fresh->embedding)->toBe([0.12346, 0.2])->and($fresh->embedding_provider)->toBe('gemini');
@@ -132,9 +133,9 @@ it('수신자가 30명 미만이거나 발송 완료가 아니면 AI 서비스�
     $few = ragCampaign($this->workspace->id, sent: 5, embedding: null);
     $draft = ragCampaign($this->workspace->id, ['status' => 'draft'], sent: 30, embedding: null);
 
-    (new EmbedCampaign($few->id))->handle(app(\App\Services\Ai\AiClient::class));
-    (new EmbedCampaign($draft->id))->handle(app(\App\Services\Ai\AiClient::class));
-    (new EmbedCampaign(999999))->handle(app(\App\Services\Ai\AiClient::class));
+    (new EmbedCampaign($few->id))->handle(app(AiClient::class));
+    (new EmbedCampaign($draft->id))->handle(app(AiClient::class));
+    (new EmbedCampaign(999999))->handle(app(AiClient::class));
 
     Http::assertNothingSent();
     expect(Campaign::withoutGlobalScopes()->find($few->id)->embedding)->toBeNull();
