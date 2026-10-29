@@ -44,7 +44,7 @@ railway add --service mktly-web
 | `OPENAI_API_KEY` | (선택) 유료 OpenAI용. Gemini가 한도 초과나 오류일 때 넘어간다 |
 | `OPENAI_MODEL` | (선택) 기본 `gpt-4o-mini` |
 
-두 키가 모두 없으면 카피 생성은 샘플 결과로 동작합니다. 유료 키를 넣을 때는 `mktly-web`의 `MKTLY_AI_OPENAI_DAILY_LIMIT`로 하루 호출 상한을 함께 설정하세요.
+두 키가 모두 없으면 카피 생성은 샘플 결과로 동작합니다. 유료 키를 넣을 때는 `mktly-web`의 `MKTLY_AI_OPENAI_DAILY_LIMIT`로 하루 호출 상한을 함께 설정하세요. 참고 자료 검색용 임베딩의 외부 호출 상한은 `MKTLY_AI_EMBED_DAILY_LIMIT`이며, 도달하면 외부 호출 없이 로컬 해시 벡터를 씁니다.
 
 ### `mktly-web`
 

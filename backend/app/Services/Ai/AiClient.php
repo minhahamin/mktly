@@ -22,6 +22,30 @@ class AiClient
     }
 
     /**
+     * 텍스트를 256차원 벡터로 바꾼다. 일일 상한에 도달했으면 외부 호출 없이 해시 벡터를 받는다.
+     * 같은 공급자가 만든 벡터끼리만 비교할 수 있으므로 provider를 벡터와 함께 저장해야 한다.
+     *
+     * @param  list<string>  $texts  최대 64개, 각 4000자 이하
+     * @return array{vectors: list<list<float>>, provider: 'gemini'|'openai'|'hash', dimensions: int}
+     */
+    public function embed(array $texts): array
+    {
+        $usage = app(AiUsage::class);
+
+        $result = $this->post('/embed', [
+            'texts' => array_values($texts),
+            'allow_external' => $usage->embedRemainingToday() !== 0,
+            'allow_openai' => $usage->openaiRemainingToday() !== 0,
+        ]);
+
+        if (($result['provider'] ?? 'hash') !== 'hash') {
+            $usage->recordEmbedding();
+        }
+
+        return $result;
+    }
+
+    /**
      * 고객별 이탈 확률을 계산한다.
      *
      * @param  list<array<string, mixed>>  $contacts  ContactFeatureBuilder가 만든 지표 행
