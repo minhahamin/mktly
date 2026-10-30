@@ -214,6 +214,82 @@ it('대표 이미지는 한 장만 저장한다', function () {
     expect(GeneratedImage::withoutGlobalScopes()->count())->toBe(1)->and(GeneratedImage::withoutGlobalScopes()->value('kind'))->toBe('cover');
 });
 
+// ---- AI 배경 삽화 -----------------------------------------------------------
+
+function imgThreeSlides(): array
+{
+    return array_map(fn ($i) => ['title' => "제목{$i}", 'body' => ''], range(1, 3));
+}
+
+it('상한이 설정되지 않으면 AI 배경 선택지가 없고 요청하지도 않는다', function () {
+    Http::fake(['ai.test/cardnews/render' => Http::response(imgRenderResponse(3))]);
+
+    Livewire::actingAs($this->user)->test(Create::class)->set('topic', '가을 코트')->set('slides', imgThreeSlides())
+        ->assertDontSee('AI 배경 삽화')->set('aiBackground', true)->call('generate')->assertHasNoErrors();
+
+    Http::assertSent(fn ($r) => $r['ai_background'] === false && $r['topic'] === '가을 코트');
+});
+
+it('AI 배경을 고르면 요청하고, AI 배경으로 그린 세트로 저장해 목록에 표시한다', function () {
+    config(['mktly.ai.image_daily_limit' => 3]);
+    Http::fake(['ai.test/cardnews/render' => Http::response(imgRenderResponse(3, 'gemini'))]);
+
+    Livewire::actingAs($this->user)->test(Create::class)->set('topic', '가을 코트')->set('slides', imgThreeSlides())
+        ->assertSee('AI 배경 삽화 사용 (오늘 남은 3회)')
+        ->set('aiBackground', true)->call('generate')->assertHasNoErrors();
+
+    Http::assertSent(fn ($r) => $r['ai_background'] === true && $r['topic'] === '가을 코트');
+    expect(GeneratedImage::withoutGlobalScopes()->pluck('background_provider')->unique()->all())->toBe(['gemini'])
+        ->and(app(AiUsage::class)->imageRemainingToday())->toBe(2);
+    Livewire::actingAs($this->user)->test(Index::class)->assertSee('AI 배경');
+});
+
+it('AI 배경을 고르지 않으면 상한이 남아 있어도 요청하지 않는다', function () {
+    config(['mktly.ai.image_daily_limit' => 3]);
+    Http::fake(['ai.test/cardnews/render' => Http::response(imgRenderResponse(3))]);
+
+    Livewire::actingAs($this->user)->test(Create::class)->set('slides', imgThreeSlides())->call('generate')->assertHasNoErrors();
+
+    Http::assertSent(fn ($r) => $r['ai_background'] === false);
+});
+
+it('AI 배경 상한은 모든 워크스페이스 합계이고, 도달하면 기본 배경으로 그린다', function () {
+    config(['mktly.ai.image_daily_limit' => 2]);
+    Http::fake(['ai.test/cardnews/render' => Http::response(imgRenderResponse(3))]);
+    [, $other] = userInWorkspace('admin', '다른 스토어');
+    imgSet($other->id, 3, ['background_provider' => 'gemini']);
+    imgSet($this->workspace->id, 1, ['background_provider' => 'gemini']);
+    imgSet($this->workspace->id, 1);                                        // 템플릿 배경은 세지 않는다
+    $yesterday = imgSet($other->id, 1, ['background_provider' => 'gemini']);
+    GeneratedImage::withoutGlobalScopes()->where('set_uuid', $yesterday)->update(['created_at' => now()->subDay()]);  // 어제 것은 세지 않는다
+
+    expect(app(AiUsage::class)->imageRemainingToday())->toBe(0);
+
+    Livewire::actingAs($this->user)->test(Create::class)->set('slides', imgThreeSlides())
+        ->assertSee('오늘 AI 배경 삽화 한도를 모두 사용해')
+        ->set('aiBackground', true)->call('generate')->assertHasNoErrors();
+
+    Http::assertSent(fn ($r) => $r['ai_background'] === false);
+});
+
+it('AI 배경을 만들지 못해 기본 배경으로 그려졌으면 그대로 저장하고 사용량에 세지 않는다', function () {
+    config(['mktly.ai.image_daily_limit' => 1]);
+    Http::fake(['ai.test/cardnews/render' => Http::response(imgRenderResponse(3, 'template'))]);
+
+    Livewire::actingAs($this->user)->test(Create::class)->set('slides', imgThreeSlides())->set('aiBackground', true)->call('generate')->assertHasNoErrors();
+
+    expect(GeneratedImage::withoutGlobalScopes()->value('background_provider'))->toBe('template')
+        ->and(app(AiUsage::class)->imageRemainingToday())->toBe(1);
+});
+
+it('알 수 없는 배경 공급자 값은 기본 배경으로 기록한다', function () {
+    Http::fake(['ai.test/cardnews/render' => Http::response(imgRenderResponse(3, '<script>'))]);
+
+    Livewire::actingAs($this->user)->test(Create::class)->set('slides', imgThreeSlides())->call('generate')->assertHasNoErrors();
+
+    expect(GeneratedImage::withoutGlobalScopes()->value('background_provider'))->toBe('template');
+});
+
 it('문구 입력을 검증한다', function () {
     Http::fake(['ai.test/cardnews/render' => Http::response(imgRenderResponse(3))]);
     $slides = fn (array $override = []) => array_replace_recursive(array_map(fn ($i) => ['title' => "제목{$i}", 'body' => '본문'], range(1, 3)), $override);

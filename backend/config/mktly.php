@@ -33,6 +33,9 @@ return [
         'openai_daily_limit' => env('MKTLY_AI_OPENAI_DAILY_LIMIT') ? (int) env('MKTLY_AI_OPENAI_DAILY_LIMIT') : null,
         // 임베딩(참고 자료 검색) 외부 호출 일일 상한. 도달하면 외부 호출 없이 로컬 해시 벡터를 쓴다. 비워 두면 제한하지 않는다.
         'embed_daily_limit' => env('MKTLY_AI_EMBED_DAILY_LIMIT') ? (int) env('MKTLY_AI_EMBED_DAILY_LIMIT') : null,
+        // 카드뉴스 AI 배경 삽화(Gemini 이미지 모델, 무료 등급 없음) 일일 상한. 세트당 1회 호출한다.
+        // 다른 상한과 달리 비워 두거나 0이면 기능이 꺼진다(유료 호출이므로 운영자가 켤 때만 쓴다).
+        'image_daily_limit' => env('MKTLY_AI_IMAGE_DAILY_LIMIT') ? (int) env('MKTLY_AI_IMAGE_DAILY_LIMIT') : null,
     ],
 
     // 배포 후 첫 관리자 계정. 값이 모두 있고 사용자가 한 명도 없을 때만 `mktly:bootstrap`이 계정을 만든다.

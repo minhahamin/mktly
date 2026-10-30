@@ -179,6 +179,8 @@ class CardnewsRenderRequest(BaseModel):
     ratio: Literal["1:1", "4:5", "16:9"] = "1:1"
     slides: list[CardSlide] = Field(min_length=1, max_length=MAX_SLIDES)
     seed: str = Field(default="", max_length=64, description="같은 값이면 같은 배경이 나온다")
+    topic: str = Field(default="", max_length=300, description="AI 배경 삽화의 분위기를 정할 주제")
+    ai_background: bool = Field(default=False, description="True면 Gemini 이미지 모델로 배경 삽화를 시도한다(유료, Laravel이 일일 상한을 보고 지정)")
 
     @model_validator(mode="after")
     def slide_count_matches_kind(self) -> "CardnewsRenderRequest":

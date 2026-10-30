@@ -1,6 +1,7 @@
 """카드뉴스 템플릿 렌더러. 파스텔 핑크 그라데이션 배경 위에 반투명 유리 카드를 올리고 글자를 그린다.
 
 글자는 항상 여기서 그린다(이미지 모델이 그린 한글은 깨지기 쉽다). 외부 호출이 없어 키 없이 동작한다.
+AI 배경 삽화(background.py)가 있으면 blob 배경 대신 그 삽화를 장마다 다르게 잘라 깐다.
 """
 
 import hashlib
@@ -38,15 +39,19 @@ class RenderedPng:
     height: int
 
 
-def render_slides(slides: list[tuple[str, str]], *, kind: str, ratio: str, seed: str = "") -> list[RenderedPng]:
-    """(제목, 본문) 목록을 슬라이드별 PNG로 그린다. 같은 seed면 같은 배경이 나온다."""
+def render_slides(slides: list[tuple[str, str]], *, kind: str, ratio: str, seed: str = "", art: Image.Image | None = None) -> list[RenderedPng]:
+    """(제목, 본문) 목록을 슬라이드별 PNG로 그린다. 같은 seed면 같은 배경이 나온다.
+
+    art가 있으면 한 세트의 모든 장이 그 삽화를 공유하고, 장마다 자르는 위치만 달라진다.
+    """
     width, height = SIZES[ratio]
     total = len(slides)
     results = []
 
     for index, (title, body) in enumerate(slides):
-        image = _background(width, height, seed, index)
-        _glass_card(image)
+        image = _background(width, height, seed, index) if art is None else _art_background(art, width, height, seed, index)
+        # 삽화는 blob보다 무늬가 뚜렷해서 유리를 더 하얗게 덮어 글자 대비를 지킨다.
+        _glass_card(image, veil=120 if art is None else 165)
         _draw_text(image, title, body, index=index, total=total, kind=kind)
         results.append(RenderedPng(_encode(image), width, height))
 
@@ -85,13 +90,26 @@ def _background(width: int, height: int, seed: str, index: int) -> Image.Image:
     return layer.resize((width, height), Image.Resampling.BICUBIC).convert("RGBA")
 
 
+def _art_background(art: Image.Image, width: int, height: int, seed: str, index: int) -> Image.Image:
+    """삽화를 조금 크게 키운 뒤 장마다 다른 위치를 잘라 쓰고, 옅은 핑크를 덮어 팔레트와 맞춘다."""
+    rng = random.Random(int.from_bytes(hashlib.sha256(f"{seed}:art:{index}".encode()).digest()[:8], "big"))
+    zoom = 1.18
+    scale = max(width * zoom / art.width, height * zoom / art.height)
+    resized = art.convert("RGB").resize((round(art.width * scale), round(art.height * scale)), Image.Resampling.LANCZOS)
+    left = rng.randint(0, resized.width - width)
+    top = rng.randint(0, resized.height - height)
+    cropped = resized.crop((left, top, left + width, top + height))
+
+    return Image.blend(cropped, Image.new("RGB", (width, height), PINK_50), 0.18).convert("RGBA")
+
+
 def _card_box(width: int, height: int) -> tuple[int, int, int, int]:
     margin = int(min(width, height) * 0.07)
 
     return margin, margin, width - margin, height - margin
 
 
-def _glass_card(image: Image.Image) -> None:
+def _glass_card(image: Image.Image, veil: int = 120) -> None:
     """뒤 배경을 흐리게 하고 흰색을 덮은 반투명 유리 카드. 그림자, 흰 테두리, 윗부분 하이라이트를 더한다."""
     width, height = image.size
     box = _card_box(width, height)
@@ -105,7 +123,7 @@ def _glass_card(image: Image.Image) -> None:
     ImageDraw.Draw(mask).rounded_rectangle(box, radius, fill=255)
 
     frosted = image.filter(ImageFilter.GaussianBlur(radius=int(min(width, height) * 0.025)))
-    white = Image.new("RGBA", image.size, (255, 255, 255, 120))
+    white = Image.new("RGBA", image.size, (255, 255, 255, veil))
     frosted.alpha_composite(white)
     image.paste(frosted, (0, 0), mask)
 

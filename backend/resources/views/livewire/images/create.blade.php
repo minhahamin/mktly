@@ -103,7 +103,18 @@
                     </ul>
                 @endif
 
-                <div class="mt-6 flex justify-end">
+                <div class="mt-6 flex flex-wrap items-center justify-end gap-4">
+                    @if ($this->imageRemaining !== null)
+                        <div class="mr-auto">
+                            @if ($this->imageRemaining > 0)
+                                <x-glass.checkbox label="AI 배경 삽화 사용 (오늘 남은 {{ $this->imageRemaining }}회)" wire:model="aiBackground" />
+                                <p class="mt-1 text-xs text-ink-500">만들지 못하면 기본 배경으로 그립니다.</p>
+                            @else
+                                <p class="text-xs text-ink-500">오늘 AI 배경 삽화 한도를 모두 사용해 기본 배경으로 그립니다.</p>
+                            @endif
+                        </div>
+                    @endif
+
                     <x-glass.button type="button" size="lg" icon="image" wire:click="generate" wire:loading.attr="disabled" wire:target="generate">
                         <span wire:loading.remove wire:target="generate">이미지 만들기</span>
                         <span wire:loading wire:target="generate">이미지를 그리는 중...</span>

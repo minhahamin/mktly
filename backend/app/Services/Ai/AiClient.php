@@ -48,14 +48,22 @@ class AiClient
     }
 
     /**
-     * 슬라이드 문구를 PNG 이미지로 그린다.
+     * 슬라이드 문구를 PNG 이미지로 그린다. AI 배경 삽화를 기다릴 수 있어 타임아웃이 더 길다.
      *
      * @param  list<array{title: string, body: string}>  $slides
-     * @return array{images: list<array{index: int, width: int, height: int, png_base64: string}>, background_provider: string}
+     * @param  bool  $aiBackground  true이면 Gemini 이미지 모델로 배경 삽화를 시도한다(유료). 실패하면 템플릿 배경으로 그린다
+     * @return array{images: list<array{index: int, width: int, height: int, png_base64: string}>, background_provider: 'gemini'|'template'}
      */
-    public function cardnewsRender(array $slides, string $kind, string $ratio, string $seed): array
+    public function cardnewsRender(array $slides, string $kind, string $ratio, string $seed, string $topic = '', bool $aiBackground = false): array
     {
-        return $this->post('/cardnews/render', ['slides' => $slides, 'kind' => $kind, 'ratio' => $ratio, 'seed' => $seed]);
+        return $this->post('/cardnews/render', [
+            'slides' => $slides,
+            'kind' => $kind,
+            'ratio' => $ratio,
+            'seed' => $seed,
+            'topic' => $topic,
+            'ai_background' => $aiBackground,
+        ], timeout: config('services.ai.image_timeout'));
     }
 
     /**
@@ -142,12 +150,12 @@ class AiClient
     }
 
     /** @return array<string, mixed> */
-    private function post(string $path, array $payload): array
+    private function post(string $path, array $payload, ?int $timeout = null): array
     {
         try {
             $response = Http::baseUrl(config('services.ai.url'))
                 ->withHeaders(['X-Internal-Token' => (string) config('services.ai.token')])
-                ->timeout(config('services.ai.timeout'))
+                ->timeout($timeout ?? config('services.ai.timeout'))
                 ->acceptJson()
                 ->post($path, $payload);
         } catch (ConnectionException) {

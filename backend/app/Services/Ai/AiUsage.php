@@ -3,9 +3,10 @@
 namespace App\Services\Ai;
 
 use App\Models\AiGeneration;
+use App\Models\GeneratedImage;
 use Illuminate\Support\Facades\Cache;
 
-/** LLM 호출 비용을 보호하기 위한 일일 사용량 계산. */
+/** LLM, 이미지 모델 호출 비용을 보호하기 위한 일일 사용량 계산. */
 class AiUsage
 {
     /**
@@ -65,6 +66,27 @@ class AiUsage
         }
 
         return max(0, (int) $limit - (int) Cache::get($this->embedKey(), 0));
+    }
+
+    /**
+     * 오늘 더 만들 수 있는 AI 배경 삽화 세트 수. 상한(MKTLY_AI_IMAGE_DAILY_LIMIT)이 없으면 기능이 꺼진 것으로 보고 0이다.
+     * 실제로 AI 배경으로 저장된 세트만 센다. 호출이 실패해 템플릿 배경으로 대체된 세트는 세지 않는다.
+     */
+    public function imageRemainingToday(): int
+    {
+        $limit = (int) config('mktly.ai.image_daily_limit');
+
+        if ($limit <= 0) {
+            return 0;
+        }
+
+        $used = GeneratedImage::withoutGlobalScopes()
+            ->where('background_provider', GeneratedImage::BACKGROUND_GEMINI)
+            ->where('created_at', '>=', now()->startOfDay())
+            ->distinct()
+            ->count('set_uuid');
+
+        return max(0, $limit - $used);
     }
 
     /** 외부 공급자(Gemini, OpenAI)가 응답한 임베딩 호출 한 건을 오늘 사용량에 더한다. 해시 벡터는 비용이 없으므로 세지 않는다. */

@@ -16,6 +16,9 @@ class GeneratedImage extends Model
 
     public const RATIOS = ['1:1' => '1:1 (정사각형)', '4:5' => '4:5 (세로형)', '16:9' => '16:9 (가로형)'];
 
+    /** Gemini 이미지 모델이 그린 배경. 그 외에는 template(서버가 그린 기본 배경)이다. */
+    public const BACKGROUND_GEMINI = 'gemini';
+
     /** 워크스페이스당 보관할 수 있는 이미지 세트 수 */
     public const MAX_SETS = 30;
 

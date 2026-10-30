@@ -14,7 +14,7 @@ use DomainException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-/** 카드뉴스/대표 이미지: 문구 초안 생성(LLM)과 이미지 렌더(템플릿), 결과 저장. 현재 사용자의 워크스페이스 기준으로 동작한다. */
+/** 카드뉴스/대표 이미지: 문구 초안 생성(LLM)과 이미지 렌더(템플릿 또는 AI 배경), 결과 저장. 현재 사용자의 워크스페이스 기준으로 동작한다. */
 class CardNews
 {
     private const PNG_SIGNATURE = "\x89PNG\r\n\x1a\n";
@@ -78,20 +78,26 @@ class CardNews
 
     /**
      * 슬라이드를 PNG로 그려 저장하고 세트 id(uuid)를 돌려준다.
+     * AI 배경을 원해도 일일 상한이 남아 있을 때만 요청한다. 실패하면 AI 서비스가 템플릿 배경으로 그려 준다.
      *
      * @param  list<array{title: string, body: string}>  $slides
+     * @param  string  $title  세트 제목. AI 배경 삽화의 주제로도 쓴다
      *
      * @throws DomainException 보관 한도를 넘었거나 AI 서비스가 쓸 수 없는 이미지를 돌려준 경우
      * @throws AiUnavailableException AI 서비스를 쓸 수 없는 경우
      */
-    public function render(array $slides, string $kind, string $ratio, string $title, ?int $generationId, ?int $userId): string
+    public function render(array $slides, string $kind, string $ratio, string $title, ?int $generationId, ?int $userId, bool $aiBackground = false): string
     {
         if (GeneratedImage::query()->distinct()->count('set_uuid') >= GeneratedImage::MAX_SETS) {
             throw new DomainException('이미지 세트는 워크스페이스당 최대 '.GeneratedImage::MAX_SETS.'개까지 보관할 수 있습니다. 쓰지 않는 세트를 삭제해 주세요.');
         }
 
         $setUuid = (string) Str::uuid();   // 같은 값을 배경 seed로 써서 세트 안의 장들이 한 가족처럼 보이게 한다
-        $result = $this->ai->cardnewsRender($slides, $kind, $ratio, $setUuid);
+        $result = $this->ai->cardnewsRender(
+            $slides, $kind, $ratio, $setUuid,
+            topic: $title,
+            aiBackground: $aiBackground && $this->usage->imageRemainingToday() > 0,
+        );
         $images = $result['images'] ?? [];
 
         if (count($images) !== count($slides)) {
@@ -120,7 +126,7 @@ class CardNews
                 'data' => $bytes,
                 'width' => (int) $image['width'],
                 'height' => (int) $image['height'],
-                'background_provider' => (string) ($result['background_provider'] ?? 'template'),
+                'background_provider' => ($result['background_provider'] ?? null) === GeneratedImage::BACKGROUND_GEMINI ? GeneratedImage::BACKGROUND_GEMINI : 'template',
             ];
         }
 

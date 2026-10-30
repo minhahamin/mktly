@@ -40,6 +40,8 @@ return [
         'url' => env('AI_SERVICE_URL', 'http://ai:8001'),
         'token' => env('AI_INTERNAL_TOKEN'),
         'timeout' => (int) env('AI_TIMEOUT', 30),
+        // 카드뉴스 렌더는 AI 배경 삽화 생성(최대 45초)을 기다릴 수 있어 따로 둔다.
+        'image_timeout' => (int) env('AI_IMAGE_TIMEOUT', 90),
     ],
 
 ];

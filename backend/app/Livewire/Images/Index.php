@@ -60,7 +60,7 @@ class Index extends Component
                     'title' => $first->title,
                     'kind' => GeneratedImage::KINDS[$first->kind] ?? $first->kind,
                     'ratio' => $first->ratio,
-                    'background' => $first->background_provider === 'gemini' ? 'AI 배경' : '템플릿 배경',
+                    'background' => $first->background_provider === GeneratedImage::BACKGROUND_GEMINI ? 'AI 배경' : '템플릿 배경',
                     'created_at' => $first->created_at,
                     'images' => $images->map(fn ($image) => ['id' => $image->id, 'number' => $image->slide_index + 1, 'title' => $image->slide_title])->all(),
                 ];

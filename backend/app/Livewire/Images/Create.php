@@ -42,6 +42,9 @@ class Create extends Component
     /** @var list<array{kind: string, id: int, title: string, open_rate: float|null}> */
     public array $aiReferences = [];
 
+    /** AI 배경 삽화를 쓸지. 유료 호출이라 기본은 꺼져 있다. */
+    public bool $aiBackground = false;
+
     public ?string $error = null;
 
     public function mount(): void
@@ -137,6 +140,7 @@ class Create extends Component
                 trim($this->topic) ?: trim($this->slides[0]['title']),
                 $this->generationId,
                 auth()->id(),
+                $this->aiBackground,
             );
         } catch (DomainException|AiUnavailableException $e) {
             $this->error = $e->getMessage();
@@ -159,6 +163,13 @@ class Create extends Component
     public function aiRemaining(): ?int
     {
         return app(AiUsage::class)->copyRemainingToday();
+    }
+
+    /** 오늘 남은 AI 배경 삽화 세트 수. 운영자가 상한을 설정하지 않았으면 기능이 꺼져 있어 null이다. */
+    #[Computed]
+    public function imageRemaining(): ?int
+    {
+        return config('mktly.ai.image_daily_limit') ? app(AiUsage::class)->imageRemainingToday() : null;
     }
 
     /** 분당 10회로 제한한다(초안은 LLM 비용, 렌더는 CPU 비용을 보호한다). 제한에 걸리면 안내 문구를 넣고 true를 돌려준다. */
