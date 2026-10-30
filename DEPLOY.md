@@ -176,7 +176,9 @@ railway ssh --service mktly-web php artisan mktly:sample-data <워크스페이�
 railway ssh --service mktly-web php artisan mktly:workspace-sending <워크스페이스 id> on
 ```
 
-가입을 받고 싶지 않다면 `MKTLY_SIGNUP_ENABLED=false`로 끕니다. 이메일 인증과 비밀번호 찾기는 아직 없습니다.
+가입을 받고 싶지 않다면 `MKTLY_SIGNUP_ENABLED=false`로 끕니다. 이메일 인증은 아직 없습니다.
+
+비밀번호 찾기는 로그인 화면의 "비밀번호를 잊으셨나요?"에서 합니다. 재설정 링크는 위의 메일 설정(SMTP)으로 발송되며, 워크스페이스의 체험 모드나 캠페인 일일 발송 한도와 관계없이 나갑니다. 공개 데모 계정은 재설정할 수 없습니다.
 
 ## 8. 운영 메모
 

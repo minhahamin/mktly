@@ -3,6 +3,10 @@
         <h1 class="text-2xl font-bold tracking-tight">다시 오신 것을 환영합니다</h1>
         <p class="mt-1.5 text-sm text-ink-500">계정으로 로그인해 캠페인과 고객 인사이트를 확인하세요.</p>
 
+        @if (session('status'))
+            <p class="mt-5 rounded-2xl bg-lavender-100/70 px-4 py-3 text-sm text-ink-700" role="status">{{ session('status') }}</p>
+        @endif
+
         <form wire:submit="login" class="mt-8 space-y-5" novalidate>
             <x-glass.input
                 label="이메일"
@@ -27,6 +31,7 @@
 
             <div class="flex items-center justify-between">
                 <x-glass.checkbox label="로그인 유지" wire:model="remember" />
+                <a href="/forgot-password" class="focus-ring rounded text-sm font-semibold text-pink-700 hover:underline">비밀번호를 잊으셨나요?</a>
             </div>
 
             <x-glass.button type="submit" size="lg" class="w-full" wire:loading.attr="disabled" wire:target="login">
