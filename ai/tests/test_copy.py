@@ -2,6 +2,7 @@ import json
 
 import httpx
 import pytest
+from fastapi.testclient import TestClient
 
 from app.llm import copy as copy_module
 from app.llm.copy import CopyGenerationError, strip_emoji
@@ -169,7 +170,15 @@ def test_all_providers_failing_raises(both_keys):
 
 def test_failure_returns_502_without_leaking_secrets(client, auth, monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "gem-secret")
-    monkeypatch.setattr(httpx.Client, "post", lambda *a, **k: (_ for _ in ()).throw(httpx.ConnectError("gem-secret refused")))
+    original_post = httpx.Client.post
+
+    # TestClient도 httpx.Client를 상속하므로 테스트 요청은 그대로 보내고, 공급자 호출만 실패시킨다.
+    def refuse(self, url, *args, **kwargs):
+        if isinstance(self, TestClient):
+            return original_post(self, url, *args, **kwargs)
+        raise httpx.ConnectError("gem-secret refused")
+
+    monkeypatch.setattr(httpx.Client, "post", refuse)
 
     res = client.post("/copy/generate", headers=auth, json={"product": "코트"})
 
