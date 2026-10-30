@@ -45,8 +45,11 @@ railway add --service mktly-web
 | `OPENAI_MODEL` | (선택) 기본 `gpt-4o-mini` |
 | `GEMINI_EMBED_MODEL` | (선택) 참고 자료 검색용 임베딩 모델. 기본 `gemini-embedding-001` |
 | `OPENAI_EMBED_MODEL` | (선택) 기본 `text-embedding-3-small` |
+| `GEMINI_IMAGE_MODEL` | (선택) 카드뉴스 AI 배경 삽화용 이미지 모델. 기본 `gemini-2.5-flash-image` |
 
 두 키가 모두 없으면 카피 생성은 샘플 결과로 동작합니다. 유료 키를 넣을 때는 `mktly-web`의 `MKTLY_AI_OPENAI_DAILY_LIMIT`로 하루 호출 상한을 함께 설정하세요. 참고 자료 검색용 임베딩의 외부 호출 상한은 `MKTLY_AI_EMBED_DAILY_LIMIT`이며, 도달하면 외부 호출 없이 로컬 해시 벡터를 씁니다.
+
+카드뉴스 AI 배경 삽화는 **유료**입니다. Gemini 이미지 생성에는 무료 등급이 없어서, 무료 등급 키로는 호출이 거부되고 결제가 연결된 키로는 장당 과금됩니다(모델과 가격은 자주 바뀌므로 [가격표](https://ai.google.dev/gemini-api/docs/pricing)에서 확인). 그래서 `mktly-web`의 `MKTLY_AI_IMAGE_DAILY_LIMIT`을 정해야만 켜지고, 비워 두면 화면에 선택지가 나오지 않습니다. 호출이 실패하면 템플릿 배경으로 그리므로 이미지는 항상 만들어집니다.
 
 ### `mktly-web`
 
@@ -67,6 +70,8 @@ railway add --service mktly-web
 | `MKTLY_DEMO_LOGIN` | `true`이면 로그인 화면에 "데모 계정으로 시작하기" 버튼이 나타납니다(읽기 전용 데모 계정이 있을 때만). 운영 환경에서는 데모 계정 역할이 viewer가 아니면 버튼이 숨겨집니다. |
 | `MKTLY_SIGNUP_ENABLED` | 공개 회원가입 켜기/끄기 (기본 `true`) |
 | `MKTLY_AI_COPY_DAILY_LIMIT` | 하루에 실제 모델로 만들 수 있는 AI 카피 생성 횟수(전체 합계). **유료 API 키를 넣을 때 반드시 설정**하세요. 샘플 모드 결과는 세지 않습니다. |
+| `MKTLY_AI_IMAGE_DAILY_LIMIT` | (선택) 하루에 만들 수 있는 카드뉴스 AI 배경 삽화 세트 수(전체 합계, 세트당 이미지 모델 1회 호출). 비워 두면 기능이 꺼집니다. |
+| `AI_IMAGE_TIMEOUT` | (선택) 카드뉴스 렌더 요청 타임아웃(초). 기본 `90` |
 
 이미지에 이미 설정된 값(변경 불필요): `APP_ENV=production`, `APP_DEBUG=false`, `QUEUE_CONNECTION=database`, `CACHE_STORE=database`, `SESSION_DRIVER=database`, `LOG_CHANNEL=stderr`.
 

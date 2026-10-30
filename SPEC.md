@@ -122,13 +122,16 @@
   2. 렌더: 사용자가 문구를 수정한 뒤 PNG로 그린다.
 - 글자는 항상 서버가 그린다. 이미지 모델에는 글자 없는 배경만 요청한다(모델이 그린 한글은 깨지기 쉽기 때문). 폰트는 저장소에 포함한 오픈 라이선스 한글 폰트(Pretendard 또는 Noto Sans KR)를 쓴다.
 - 배경은 혼합 방식이다.
-  - 키가 있으면 Gemini 이미지 모델(`GEMINI_IMAGE_MODEL`)로 글자 없는 파스텔 배경 삽화를 1개 만들어 한 세트의 모든 장이 공유한다(장마다 크롭/위치만 달리한다).
-  - 키가 없거나 한도 초과, 실패, 안전 필터 차단이면 템플릿 배경(파스텔 핑크 그라데이션 + 라벤더/피치/민트 blob)으로 대체한다. 이 경우에도 결과물은 항상 나온다.
+  - 기본은 템플릿 배경(파스텔 핑크 그라데이션 + 라벤더/피치/민트 blob)이다.
+  - AI 배경 삽화는 선택 기능이다. 만들기 화면에서 "AI 배경 삽화 사용"을 고르면 Gemini 이미지 모델(`GEMINI_IMAGE_MODEL`, 기본 `gemini-2.5-flash-image`)로 글자 없는 파스텔 배경 삽화를 1개 만들어 한 세트의 모든 장이 공유한다(장마다 크롭 위치만 달리하고, 옅은 핑크를 덮어 팔레트를 맞춘다). 주제는 `<topic>` 블록으로 격리한다.
+  - Gemini 이미지 생성에는 무료 등급이 없다(2026-10 확인, 장당 약 $0.03~0.04). 무료 등급 키로는 호출이 거부되고, 결제가 연결된 키로는 과금된다. 그래서 일일 상한을 정했을 때만 켜진다.
+  - 키가 없거나, 한도 초과, 인증 오류, 실패, 안전 필터 차단, 쓸 수 없는 이미지면 템플릿 배경으로 대체한다. 이 경우에도 결과물은 항상 나온다.
   - OpenAI 이미지 API는 장당 비용이 커서 쓰지 않는다.
 - 응답한 배경 공급자(`gemini`/`template`)를 기록하고 화면에 표시한다.
 - 이모지를 이미지에 넣지 않는다. 장식은 도형과 선으로만 한다.
-- 결과 PNG는 Laravel이 받아 `public` 디스크에 저장하고, `/images`에서 목록, 미리보기, 개별 다운로드와 전체 ZIP 다운로드를 제공한다. 이메일 본문에 자동 삽입하지는 않는다(추적/호스팅 범위 밖).
-- 비용 보호: Gemini 배경 호출 일일 상한(`MKTLY_AI_IMAGE_DAILY_LIMIT`). 세트당 배경 호출은 최대 1회다. 무료 한도와 모델명은 자주 바뀌므로 구현 시점에 확인한다.
+- 결과 PNG는 Laravel이 받아 DB(`generated_images.data`)에 저장하고, 인증된 라우트(`/images/{id}/file`, `/images/sets/{uuid}/zip`)로만 내려준다. 공개 URL이 없어 다른 워크스페이스가 받을 수 없고, 배포 환경에 영구 디스크가 없어도 된다. 워크스페이스당 최대 30세트를 보관한다. `/images`에서 목록, 미리보기, 개별 다운로드와 전체 ZIP 다운로드를 제공한다. 이메일 본문에 자동 삽입하지는 않는다(추적/호스팅 범위 밖).
+- 비용 보호: AI 배경 일일 상한(`MKTLY_AI_IMAGE_DAILY_LIMIT`, 모든 워크스페이스 합계). 다른 상한과 달리 비워 두면 기능이 꺼지고 화면에 선택지가 나오지 않는다. 세트당 배경 호출은 최대 1회이며, 실제로 AI 배경으로 저장된 세트만 센다. 모델명과 가격은 자주 바뀌므로 운영 시점에 확인한다.
+- 렌더 요청은 배경 생성(AI 서비스 쪽 최대 45초)을 기다릴 수 있어 Laravel 타임아웃을 따로 둔다(`AI_IMAGE_TIMEOUT`, 기본 90초).
 - 권한: `admin`, `marketer`는 생성/삭제, `viewer`는 조회만 가능하다.
 
 ### 4.5 이탈/구매 가능성 예측 (Python)
@@ -174,7 +177,7 @@ A/B 테스트, 실제 SMS/푸시 발송, 감성 분석, 주간 리포트 자동 
 | `ai_generations` | id, workspace_id, type, input(json), output(json), provider, created_at |
 | `brand_documents` | id, workspace_id, title, content, created_by, created_at |
 | `brand_chunks` | id, workspace_id, brand_document_id, position, content, embedding(json, nullable), embedding_provider(nullable) |
-| `generated_images` | id, workspace_id, user_id, ai_generation_id, set_uuid, kind(cardnews/cover), slide_index, ratio, path, width, height, background_provider, created_at |
+| `generated_images` | id, workspace_id, user_id, ai_generation_id, set_uuid, title, kind(cardnews/cover), slide_index, ratio, slide_title, data(PNG), width, height, background_provider(gemini/template), created_at |
 
 모든 워크스페이스 소유 테이블은 `workspace_id` 인덱스를 가진다.
 
@@ -190,7 +193,8 @@ A/B 테스트, 실제 SMS/푸시 발송, 감성 분석, 주간 리포트 자동 
 | `/contacts`, `/contacts/import` | Livewire | 고객 목록, CSV 업로드 |
 | `/segments`, `/segments/create`, `/segments/{id}/edit` | Livewire | 세그먼트, 대상 수 미리보기, AI 추천 |
 | `/brand-documents`, `/brand-documents/create` | Livewire | 브랜드 문서 목록, 등록, 삭제 |
-| `/images`, `/images/create` | Livewire | 생성한 이미지 세트 목록, 카드뉴스/대표 이미지 생성(초안 수정 후 렌더), 다운로드 |
+| `/images`, `/images/create` | Livewire | 생성한 이미지 세트 목록, 카드뉴스/대표 이미지 생성(초안 수정 후 렌더, AI 배경 선택) |
+| `GET /images/{id}/file`, `GET /images/sets/{uuid}/zip` | 컨트롤러 | PNG 미리보기/다운로드(`?download=1`), 세트 ZIP 다운로드 (인증, 워크스페이스 격리) |
 | `/settings` | Livewire | 워크스페이스, 멤버 |
 | `GET /t/o/{token}.gif`, `GET /t/c/{token}` | 컨트롤러 | 오픈/클릭 추적 (인증 없음, 공개) |
 | `GET /up` | 프레임워크 | 헬스 체크 |
@@ -204,7 +208,7 @@ AI 서비스 호출(카피 생성, 클러스터링)은 Livewire 액션에서 `Ai
 | POST | `/copy/generate` | 제품/타겟/톤 + 선택 입력(후보 캠페인, 브랜드 조각) -> 제목 후보, 본문, `references` |
 | POST | `/embed` | 텍스트 배열 -> 256차원 벡터 배열과 `provider` |
 | POST | `/cardnews/draft` | 주제/타겟/톤/장수 + 선택 참고 자료 -> 슬라이드별 제목, 본문, `references` |
-| POST | `/cardnews/render` | 슬라이드 문구, 비율 -> PNG(base64) 배열과 `background_provider` |
+| POST | `/cardnews/render` | 슬라이드 문구, 비율, seed, 선택 입력(`topic`, `ai_background`) -> PNG(base64) 배열과 `background_provider` |
 | POST | `/predict/churn` | 고객 RFM 배열 -> 고객별 확률 |
 | POST | `/cluster` | 고객 RFM 배열, k -> 클러스터 라벨과 요약 |
 | GET | `/health` | 상태 확인 |
@@ -241,7 +245,7 @@ MVP 이후 확장(RAG):
 | M9 | 성과 기반 참고: 캠페인 임베딩 Job, 후보 전달, 카피 패널의 참고 자료 표시 | 시드 데이터로 유사 캠페인이 `references`에 표시 |
 | M10 | 브랜드 문서: 등록, 조각 분할, 임베딩 Job, 카피 프롬프트 반영 | 다른 워크스페이스 문서가 섞이지 않음(Pest 검증) |
 | M11 | 카드뉴스: 초안 생성, 템플릿 배경 렌더(Pillow, 한글 폰트), 저장과 다운로드 | 키 없이 PNG 생성, 글자가 영역을 넘지 않음 |
-| M12 | Gemini 배경 삽화 선택 기능, 실패 시 템플릿 폴백, 일일 상한 | 키 유무와 실패 상황 모두에서 결과물이 나옴(pytest) |
+| M12 | Gemini 배경 삽화 선택 기능(유료, 상한을 정해야 켜짐), 실패 시 템플릿 폴백, 일일 상한 | 키 유무와 실패 상황 모두에서 결과물이 나옴(pytest) |
 
 각 마일스톤은 기능 단위로 커밋하고 푸시한다.
 
@@ -270,8 +274,10 @@ MVP 범위(마일스톤 M0~M7)를 모두 구현했습니다. 설계 문서와 �
 | AI 카피 공급자 | Anthropic API | Gemini 무료 -> OpenAI 유료 -> Mock 순서의 폴백 |
 | 이탈 예측 입력 | RFM | 구매 최근성은 라벨 정의에 쓰이므로 제외하고 구매액, 가입 기간, 메일 반응을 사용 |
 | 컨테이너 | web, api, ai, mysql, redis, mailpit | app, queue, scheduler, ai, mysql, redis, mailpit |
+| 생성 이미지 저장 | `public` 디스크에 파일, `path` 컬럼 | DB의 `data` 컬럼, 인증된 라우트로만 제공(공개 URL 없음, 영구 디스크 불필요) |
+| AI 배경 삽화 | Gemini 무료 모델 | 무료 등급이 없어 유료 선택 기능으로 변경. 상한을 정해야 켜지고 만들기 화면에서 고른다 |
 
-M8~M10(RAG)은 MVP 이후 확장으로 4.4, 4.7~4.9에 정의하고 구현했습니다. M11~M12(이미지 생성, 4.10)는 정의만 했고 아직 구현하지 않았습니다.
+M8~M10(RAG)과 M11~M12(카드뉴스/대표 이미지 생성)는 MVP 이후 확장으로 4.4, 4.7~4.10에 정의하고 구현했습니다.
 
 ### 알려진 한계
 
@@ -279,6 +285,7 @@ M8~M10(RAG)은 MVP 이후 확장으로 4.4, 4.7~4.9에 정의하고 구현했습
 - SMS와 푸시는 모의 채널(실제 전송 없음)입니다.
 - 전환(conversion) 이벤트를 기록하는 경로가 없습니다. 시드 데이터에만 존재합니다.
 - 클러스터링을 다시 실행하면 그룹 번호가 바뀔 수 있습니다.
+- 카드뉴스 AI 배경 삽화는 실제 Gemini 이미지 모델로 생성해 보지 않았습니다. 응답 처리와 실패 시 템플릿 대체는 가짜 응답으로 테스트했습니다.
 
 ### MVP 이후 후보
 
