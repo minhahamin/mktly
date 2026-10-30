@@ -78,6 +78,7 @@ PHP(Laravel)가 화면과 비즈니스 로직을, Python(FastAPI)이 AI 기능�
 
 - 브라우저는 Laravel만 호출합니다. AI 서비스는 내부 토큰(`X-Internal-Token`)으로 보호되고 Laravel을 통해서만 접근합니다.
 - 화면은 Blade + Livewire로 서버 렌더링하며 별도 프론트엔드 프로젝트나 화면용 JSON API가 없습니다.
+- 배포 구성, Laravel 내부 계층, 주요 기능의 흐름(발송과 추적, AI 카피, 카드뉴스, 이탈 예측)은 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)에 구조도로 정리했습니다.
 
 ## 기술 스택
 
