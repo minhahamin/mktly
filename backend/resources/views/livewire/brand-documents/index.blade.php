@@ -20,17 +20,23 @@
         <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             @foreach ($this->documents as $document)
                 <x-glass.card strong wire:key="brand-document-{{ $document['id'] }}" class="flex flex-col">
-                    <div class="flex items-start justify-between gap-3">
-                        <h2 class="min-w-0 break-words text-lg font-bold">{{ $document['title'] }}</h2>
-                        @if ($document['ready'])
-                            <span class="glass tint-mint shrink-0 rounded-full px-3 py-1 text-xs font-semibold">검색 가능</span>
-                        @else
-                            <span class="glass tint-peach shrink-0 rounded-full px-3 py-1 text-xs font-semibold">준비 중</span>
-                        @endif
-                    </div>
+                    {{-- 카드 본문을 누르면 전체 내용을 연다. 삭제 버튼과 겹치지 않도록 버튼을 나눈다. --}}
+                    <button type="button" wire:click="openDocument({{ $document['id'] }})" class="focus-ring -m-2 flex flex-1 flex-col rounded-2xl p-2 text-left transition hover:bg-white/50" aria-label="{{ $document['title'] }} 전체 내용 보기">
+                        <span class="flex w-full items-start justify-between gap-3">
+                            <span class="min-w-0 break-words text-lg font-bold">{{ $document['title'] }}</span>
+                            @if ($document['ready'])
+                                <span class="glass tint-mint shrink-0 rounded-full px-3 py-1 text-xs font-semibold">검색 가능</span>
+                            @else
+                                <span class="glass tint-peach shrink-0 rounded-full px-3 py-1 text-xs font-semibold">준비 중</span>
+                            @endif
+                        </span>
 
-                    <p class="mt-3 flex-1 break-words text-sm text-ink-700">{{ $document['preview'] }}</p>
-                    <p class="mt-3 text-xs text-ink-500">조각 {{ $document['chunks'] }}개 · {{ $document['created_at']->format('Y-m-d') }} 등록</p>
+                        <span class="mt-3 block flex-1 break-words text-sm text-ink-700">{{ $document['preview'] }}</span>
+                        <span class="mt-3 flex w-full items-center justify-between gap-3 text-xs text-ink-500">
+                            <span>조각 {{ $document['chunks'] }}개 · {{ $document['created_at']->format('Y-m-d') }} 등록</span>
+                            <span class="font-semibold text-pink-700">전체 보기</span>
+                        </span>
+                    </button>
 
                     @if ($this->canManage)
                         <div class="mt-4 flex justify-end">
@@ -42,6 +48,16 @@
                 </x-glass.card>
             @endforeach
         </div>
+    @endif
+
+    @if ($this->viewingDocument)
+        <x-glass.modal :title="$this->viewingDocument['title']" close="closeDocument" wide>
+            <p class="-mt-3 mb-4 text-xs text-ink-500">조각 {{ $this->viewingDocument['chunks'] }}개 · {{ $this->viewingDocument['created_at']->format('Y-m-d') }} 등록</p>
+            <div class="whitespace-pre-line break-words rounded-2xl bg-white/70 p-4 text-sm leading-relaxed text-ink-900">{{ $this->viewingDocument['content'] }}</div>
+            <div class="mt-6 flex justify-end">
+                <x-glass.button type="button" tint="plain" wire:click="closeDocument">닫기</x-glass.button>
+            </div>
+        </x-glass.modal>
     @endif
 
     @if ($deletingId)

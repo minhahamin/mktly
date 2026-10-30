@@ -227,6 +227,39 @@ it('다른 워크스페이스의 문서는 삭제할 수 없다', function () {
     expect(BrandDocument::withoutGlobalScopes()->count())->toBe(1);
 });
 
+it('카드를 누르면 미리보기에서 잘린 부분까지 전체 내용을 보여 주고 닫을 수 있다', function () {
+    $tail = '마지막 문단에만 있는 금칙어 안내입니다';
+    $document = brandDocument($this->workspace->id, '긴 가이드', [str_repeat('앞부분 설명입니다. ', 30), $tail]);
+
+    Livewire::actingAs($this->user)->test(Index::class)
+        ->assertSee('전체 보기')->assertDontSee($tail)
+        ->call('openDocument', $document->id)
+        ->assertSet('viewingId', $document->id)->assertSee($tail)
+        ->call('closeDocument')
+        ->assertSet('viewingId', null)->assertDontSee($tail);
+});
+
+it('viewer도 문서 전체 내용을 볼 수 있다', function () {
+    [$viewer, $workspace] = userInWorkspace('viewer', '읽기 전용');
+    $document = brandDocument($workspace->id, '공개 문서', ['짧은 내용', '두 번째 문단']);
+
+    Livewire::actingAs($viewer)->test(Index::class)->call('openDocument', $document->id)->assertSee('두 번째 문단');
+});
+
+it('다른 워크스페이스의 문서는 열어 볼 수 없다', function () {
+    [, $other] = userInWorkspace('admin', '다른 스토어');
+    $document = brandDocument($other->id, '남의 문서', ['남의 비밀 문구']);
+
+    Livewire::actingAs($this->user)->test(Index::class)->call('openDocument', $document->id)->assertNotFound();
+});
+
+it('문서 내용의 HTML은 실행되지 않고 글자로 보인다', function () {
+    $document = brandDocument($this->workspace->id, '주입 시도', ['<script>alert(1)</script>']);
+
+    Livewire::actingAs($this->user)->test(Index::class)->call('openDocument', $document->id)
+        ->assertSeeHtml('&lt;script&gt;alert(1)&lt;/script&gt;')->assertDontSeeHtml('<script>alert(1)</script>');
+});
+
 // ---- 임베딩 작업 ------------------------------------------------------------
 
 it('임베딩이 없는 조각만 64개씩 나눠 임베딩하고 공급자와 함께 저장한다', function () {

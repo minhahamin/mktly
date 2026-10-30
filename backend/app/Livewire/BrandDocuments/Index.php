@@ -4,6 +4,7 @@ namespace App\Livewire\BrandDocuments;
 
 use App\Models\BrandDocument;
 use App\Services\Brand\BrandDocuments;
+use Illuminate\Support\Carbon;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -15,9 +16,38 @@ class Index extends Component
 {
     public ?int $deletingId = null;
 
+    /** 전체 내용을 열어 본 문서 id */
+    public ?int $viewingId = null;
+
     public function mount(): void
     {
         $this->authorize('viewAny', BrandDocument::class);
+    }
+
+    /** 카드를 누르면 전체 내용을 보여 준다. 다른 워크스페이스의 문서는 글로벌 스코프 때문에 404다. */
+    public function openDocument(int $id): void
+    {
+        $this->authorize('viewAny', BrandDocument::class);
+        $this->viewingId = BrandDocument::findOrFail($id)->id;
+    }
+
+    public function closeDocument(): void
+    {
+        $this->viewingId = null;
+    }
+
+    /** @return array{title: string, content: string, chunks: int, created_at: Carbon}|null */
+    #[Computed]
+    public function viewingDocument(): ?array
+    {
+        $document = $this->viewingId ? BrandDocument::query()->withCount('chunks')->find($this->viewingId) : null;
+
+        return $document ? [
+            'title' => $document->title,
+            'content' => $document->content,
+            'chunks' => $document->chunks_count,
+            'created_at' => $document->created_at,
+        ] : null;
     }
 
     public function confirmDelete(int $id): void
