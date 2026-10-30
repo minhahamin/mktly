@@ -151,6 +151,45 @@ it('데모 비밀번호가 없거나 역할이 잘못되었거나 이미 있으�
     expect(User::where('email', 'demo@example.test')->count())->toBe(1);
 });
 
+// ---- mktly:sample-data ------------------------------------------------------------
+
+it('비어 있는 워크스페이스에 샘플 데이터를 넣고 발송을 끈다', function () {
+    [$admin, $workspace] = userInWorkspace('admin', '우리 가게');
+    $workspace->forceFill(['sending_enabled' => true])->save();
+    [, $other] = userInWorkspace('admin', '다른 가게');
+
+    $this->artisan('mktly:sample-data', ['workspace' => $workspace->id])->expectsOutputToContain('발송을 껐습니다')->assertSuccessful();
+
+    expect(Contact::withoutGlobalScopes()->where('workspace_id', $workspace->id)->count())->toBe(1000)
+        ->and(Campaign::withoutGlobalScopes()->where('workspace_id', $workspace->id)->where('status', 'sent')->count())->toBeGreaterThan(0)
+        ->and($workspace->fresh()->sending_enabled)->toBeFalse()
+        ->and(Contact::withoutGlobalScopes()->where('workspace_id', $other->id)->count())->toBe(0)
+        ->and(Workspace::count())->toBe(2)
+        ->and($admin->fresh()->is_demo)->toBeFalse();
+
+    $this->actingAs($admin)->get('/campaigns')->assertOk()->assertSee('가을 시즌 프로모션');
+});
+
+it('고객이나 캠페인이 이미 있는 워크스페이스에는 넣지 않는다', function () {
+    [, $workspace] = userInWorkspace('admin', '우리 가게');
+    Contact::withoutGlobalScopes()->create(['workspace_id' => $workspace->id, 'email' => 'real@shop.test', 'name' => '실제 고객']);
+
+    $this->artisan('mktly:sample-data', ['workspace' => $workspace->id])->expectsOutputToContain('이미 고객이나 캠페인이 있어')->assertFailed();
+
+    expect(Contact::withoutGlobalScopes()->where('workspace_id', $workspace->id)->count())->toBe(1);
+});
+
+it('운영 환경에서는 --force가 필요하고, 없는 워크스페이스면 실패한다', function () {
+    [, $workspace] = userInWorkspace('admin', '우리 가게');
+    app()->detectEnvironment(fn () => 'production');
+
+    $this->artisan('mktly:sample-data', ['workspace' => $workspace->id])->expectsOutputToContain('--force')->assertFailed();
+    expect(Contact::withoutGlobalScopes()->count())->toBe(0);
+
+    $this->artisan('mktly:sample-data', ['workspace' => 999999, '--force' => true])->expectsOutputToContain('찾을 수 없습니다')->assertFailed();
+    $this->artisan('mktly:sample-data', ['workspace' => $workspace->id, '--force' => true])->assertSuccessful();
+});
+
 // ---- 시더 ----------------------------------------------------------------------
 
 it('로컬이 아니면 기본 시더가 데모 데이터를 만들지 않는다', function () {
