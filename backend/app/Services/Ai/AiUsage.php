@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Cache;
 class AiUsage
 {
     /**
-     * 오늘 더 만들 수 있는 AI 카피 생성 횟수. 일일 한도(MKTLY_AI_COPY_DAILY_LIMIT)가 없으면 null이다.
+     * 오늘 더 만들 수 있는 AI 생성(카피, 카드뉴스 초안) 횟수. 일일 한도(MKTLY_AI_COPY_DAILY_LIMIT)가 없으면 null이다.
      * 실제 모델로 생성한 기록만 센다(샘플 모드 결과는 비용이 없으므로 제외).
      * 동시에 여러 요청이 들어오면 한도를 몇 건 넘길 수 있다.
      */
@@ -22,7 +22,7 @@ class AiUsage
         }
 
         $used = AiGeneration::withoutGlobalScopes()
-            ->where('type', AiGeneration::TYPE_COPY)
+            ->whereIn('type', AiGeneration::LLM_TYPES)
             ->where('mock', false)
             ->where('created_at', '>=', now()->startOfDay())
             ->count();
@@ -43,7 +43,7 @@ class AiUsage
         }
 
         $used = AiGeneration::withoutGlobalScopes()
-            ->where('type', AiGeneration::TYPE_COPY)
+            ->whereIn('type', AiGeneration::LLM_TYPES)
             ->where('provider', AiGeneration::PROVIDER_OPENAI)
             ->where('created_at', '>=', now()->startOfDay())
             ->count();

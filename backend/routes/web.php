@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\GeneratedImageController;
 use App\Http\Controllers\TrackingController;
 use App\Livewire\Auth\Login;
 use App\Livewire\Auth\Register;
@@ -7,6 +8,7 @@ use App\Livewire\BrandDocuments;
 use App\Livewire\Campaigns;
 use App\Livewire\Contacts;
 use App\Livewire\Dashboard;
+use App\Livewire\Images;
 use App\Livewire\Segments;
 use App\Livewire\Settings;
 use Illuminate\Http\Request;
@@ -53,6 +55,11 @@ Route::middleware('auth')->group(function () {
 
     Route::livewire('/brand-documents', BrandDocuments\Index::class)->name('brand-documents.index');
     Route::livewire('/brand-documents/create', BrandDocuments\Create::class)->name('brand-documents.create');
+
+    Route::livewire('/images', Images\Index::class)->name('images.index');
+    Route::livewire('/images/create', Images\Create::class)->name('images.create');
+    Route::get('/images/{image}/file', [GeneratedImageController::class, 'show'])->whereNumber('image')->name('images.file');
+    Route::get('/images/sets/{set}/zip', [GeneratedImageController::class, 'zip'])->whereUuid('set')->name('images.zip');
 
     Route::livewire('/settings', Settings\Index::class)->name('settings');
 

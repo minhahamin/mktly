@@ -13,6 +13,11 @@ class AiGeneration extends Model
 
     public const TYPE_COPY = 'copy';
 
+    public const TYPE_CARDNEWS = 'cardnews';
+
+    /** LLM을 호출하는 생성 종류. 일일 상한을 함께 센다. */
+    public const LLM_TYPES = [self::TYPE_COPY, self::TYPE_CARDNEWS];
+
     public const PROVIDER_OPENAI = 'openai';
 
     protected function casts(): array

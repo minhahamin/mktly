@@ -21,12 +21,41 @@ class AiClient
      */
     public function generateCopy(array $payload, bool $allowOpenai = true, array $examples = [], bool $allowExternalEmbedding = true, array $brandChunks = []): array
     {
-        return $this->post('/copy/generate', $payload + [
+        return $this->recordEmbeddingUsage($this->post('/copy/generate', $payload + [
             'allow_openai' => $allowOpenai,
             'examples' => $examples,
             'brand_chunks' => $brandChunks,
             'allow_external_embedding' => $allowExternalEmbedding,
-        ]);
+        ]));
+    }
+
+    /**
+     * 카드뉴스/대표 이미지의 슬라이드 문구 초안을 만든다. 참고 자료 인자는 generateCopy와 같다.
+     *
+     * @param  array{topic: string, target?: string, tone?: string, kind?: string, slide_count?: int}  $payload
+     * @param  list<array<string, mixed>>  $examples
+     * @param  list<array<string, mixed>>  $brandChunks
+     * @return array{slides: list<array{title: string, body: string}>, mock: bool, provider: string, references?: list<array<string, mixed>>, embedding_provider?: string|null}
+     */
+    public function cardnewsDraft(array $payload, bool $allowOpenai = true, array $examples = [], bool $allowExternalEmbedding = true, array $brandChunks = []): array
+    {
+        return $this->recordEmbeddingUsage($this->post('/cardnews/draft', $payload + [
+            'allow_openai' => $allowOpenai,
+            'examples' => $examples,
+            'brand_chunks' => $brandChunks,
+            'allow_external_embedding' => $allowExternalEmbedding,
+        ]));
+    }
+
+    /**
+     * 슬라이드 문구를 PNG 이미지로 그린다.
+     *
+     * @param  list<array{title: string, body: string}>  $slides
+     * @return array{images: list<array{index: int, width: int, height: int, png_base64: string}>, background_provider: string}
+     */
+    public function cardnewsRender(array $slides, string $kind, string $ratio, string $seed): array
+    {
+        return $this->post('/cardnews/render', ['slides' => $slides, 'kind' => $kind, 'ratio' => $ratio, 'seed' => $seed]);
     }
 
     /**
@@ -95,6 +124,21 @@ class AiClient
         }
 
         return $ping->successful() ? 'ok' : 'unauthorized';
+    }
+
+    /**
+     * 쿼리 임베딩에 외부 공급자(Gemini, OpenAI)를 썼다면 임베딩 일일 사용량에 더한다. 해시 벡터는 비용이 없으므로 세지 않는다.
+     *
+     * @param  array<string, mixed>  $result
+     * @return array<string, mixed>
+     */
+    private function recordEmbeddingUsage(array $result): array
+    {
+        if (in_array($result['embedding_provider'] ?? null, ['gemini', 'openai'], true)) {
+            app(AiUsage::class)->recordEmbedding();
+        }
+
+        return $result;
     }
 
     /** @return array<string, mixed> */

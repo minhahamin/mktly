@@ -11,6 +11,7 @@ use App\Services\Ai\AiClient;
 use App\Services\Ai\AiUnavailableException;
 use App\Services\Ai\AiUsage;
 use App\Services\Ai\CopyExamples;
+use App\Services\Ai\ReferenceLabels;
 use App\Services\Brand\BrandGuide;
 use App\Services\Campaigns\CampaignSender;
 use App\Services\Campaigns\MessageRenderer;
@@ -221,11 +222,6 @@ class Form extends Component
             return;
         }
 
-        // 쿼리 임베딩에 외부 공급자를 썼다면 임베딩 일일 사용량에 더한다.
-        if (in_array($result['embedding_provider'] ?? null, ['gemini', 'openai'], true)) {
-            $usage->recordEmbedding();
-        }
-
         $provider = $result['provider'] ?? ($result['mock'] ? 'mock' : null);
 
         AiGeneration::create([
@@ -241,39 +237,7 @@ class Form extends Component
         $this->aiBody = $result['body'];
         $this->aiMock = $result['mock'];
         $this->aiProvider = $provider;
-        $this->aiReferences = $this->displayReferences($result['references'] ?? [], $examples, $brandChunks);
-    }
-
-    /**
-     * 화면에 보여 줄 참고 자료. 우리가 보낸 후보에 있던 것만 남기고 제목과 오픈율은 우리 쪽 값을 쓴다.
-     * AI 서비스 응답이 다른 id를 끼워 넣거나 제목을 바꿔도 화면과 링크에 나오지 않게 하기 위해서다.
-     *
-     * @param  list<array<string, mixed>>  $references
-     * @param  list<array<string, mixed>>  $examples
-     * @param  list<array<string, mixed>>  $brandChunks
-     * @return list<array{kind: string, id: int, title: string, open_rate: float|null}>
-     */
-    private function displayReferences(array $references, array $examples, array $brandChunks): array
-    {
-        $campaigns = array_column($examples, null, 'id');
-        $brand = array_column($brandChunks, null, 'id');
-        $shown = [];
-
-        foreach ($references as $reference) {
-            $id = $reference['id'] ?? null;
-
-            if (! is_int($id)) {
-                continue;
-            }
-
-            if (($reference['kind'] ?? null) === 'campaign' && isset($campaigns[$id])) {
-                $shown[] = ['kind' => 'campaign', 'id' => $id, 'title' => (string) $campaigns[$id]['subject'], 'open_rate' => (float) $campaigns[$id]['open_rate']];
-            } elseif (($reference['kind'] ?? null) === 'brand' && isset($brand[$id])) {
-                $shown[] = ['kind' => 'brand', 'id' => $id, 'title' => (string) $brand[$id]['document_title'], 'open_rate' => null];
-            }
-        }
-
-        return $shown;
+        $this->aiReferences = app(ReferenceLabels::class)->resolve($result['references'] ?? [], $examples, $brandChunks);
     }
 
     public function useSubject(int $index): void
