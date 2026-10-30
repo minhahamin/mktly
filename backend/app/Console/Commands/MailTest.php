@@ -30,7 +30,7 @@ class MailTest extends Command
         $this->line("메일러: {$mailer}{$smtp}, 보내는 사람: {$from}");
 
         if ($mailer === 'log' || $mailer === 'array') {
-            $this->warn('이 메일러는 실제로 전송하지 않습니다. 배포 환경에서는 MAIL_MAILER=smtp로 설정해 주세요.');
+            $this->warn('이 메일러는 실제로 전송하지 않습니다. 배포 환경에서는 MAIL_MAILER=brevo(또는 smtp)로 설정해 주세요.');
         }
 
         try {
@@ -40,7 +40,9 @@ class MailTest extends Command
         } catch (Throwable $e) {
             // 인증 정보는 메시지에 포함되지 않지만, 원인 파악에 필요한 한 줄만 보여준다.
             $this->error('발송에 실패했습니다: '.strtok($e->getMessage(), "\n"));
-            $this->line('SMTP 로그인과 SMTP 키, 보내는 사람 주소의 인증 여부를 확인해 주세요.');
+            $this->line($mailer === 'brevo'
+                ? 'BREVO_API_KEY(SMTP 키가 아닌 API 키)와 보내는 사람 주소의 인증 여부를 확인해 주세요.'
+                : 'SMTP 로그인과 SMTP 키, 보내는 사람 주소의 인증 여부를 확인해 주세요. 호스팅이 SMTP 포트를 막으면 MAIL_MAILER=brevo를 써 주세요.');
 
             return self::FAILURE;
         }

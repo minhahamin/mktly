@@ -84,26 +84,33 @@ railway variable set --service mktly-web "APP_NAME=Mktly" "APP_URL=https://..." 
 
 ### 메일 발송 (Brevo)
 
-`MAIL_*`을 설정하지 않으면 `MAIL_MAILER=log`로 동작해서 캠페인이 "발송 완료"로 기록되지만 메일은 로그에만 남습니다. 실제로 보내려면 [Brevo](https://www.brevo.com)의 SMTP 릴레이를 씁니다.
+`MAIL_*`을 설정하지 않으면 `MAIL_MAILER=log`로 동작해서 캠페인이 "발송 완료"로 기록되지만 메일은 로그에만 남습니다. 실제로 보내려면 [Brevo](https://www.brevo.com)의 **HTTP API**를 씁니다.
+
+> **Railway에서는 SMTP를 쓸 수 없습니다.** Hobby 요금제는 나가는 SMTP 포트(25, 465, 587, 2525)를 막아서, SMTP로 설정하면 연결이 시간 초과로 끝납니다(Pro 요금제부터 열림). Brevo API는 HTTPS(443)로 보내므로 요금제와 관계없이 동작합니다.
 
 **Brevo에서 먼저 할 일**
 
 1. 계정을 만들고 **보내는 사람(Sender) 이메일 또는 도메인을 인증**합니다. 인증되지 않은 주소로는 발송이 거부됩니다.
-2. 대시보드의 **SMTP & API** 메뉴 > **SMTP** 탭에서 SMTP 로그인을 확인하고 **SMTP 키**를 만듭니다. API 키가 아니라 *SMTP 키*여야 합니다.
+2. 대시보드의 **SMTP & API** 메뉴 > **API Keys** 탭에서 **API 키**를 만듭니다. SMTP 키가 아니라 *API 키*(`xkeysib-`로 시작)여야 합니다.
 
 **`mktly-web` 변수**
 
 | 변수 | 값 |
 |---|---|
-| `MAIL_MAILER` | `smtp` |
-| `MAIL_HOST` | `smtp-relay.brevo.com` |
-| `MAIL_PORT` | `587` (막혀 있으면 `2525`) |
-| `MAIL_SCHEME` | 비워 두거나 `smtp` (587은 STARTTLS). 465 포트를 쓸 때만 `smtps` |
-| `MAIL_USERNAME` | Brevo의 SMTP 로그인 |
-| `MAIL_PASSWORD` | 위에서 만든 SMTP 키 |
+| `MAIL_MAILER` | `brevo` |
+| `BREVO_API_KEY` | 위에서 만든 API 키 |
 | `MAIL_FROM_ADDRESS` | Brevo에서 인증한 보내는 사람 주소 |
 | `MAIL_FROM_NAME` | 보내는 사람 이름 (예: `Mktly`) |
 | `MKTLY_MAIL_DAILY_LIMIT` | 요금제의 일일 발송 한도. 무료 요금제는 하루 **300통**입니다(최신 값은 Brevo 도움말에서 확인). |
+| `MAIL_TIMEOUT` | (선택) 메일 서버 응답 대기 시간(초). 기본 `10` |
+
+SMTP 포트가 열린 호스팅에서는 `MAIL_MAILER=smtp`와 `MAIL_HOST=smtp-relay.brevo.com`, `MAIL_PORT=587`, `MAIL_USERNAME`(SMTP 로그인), `MAIL_PASSWORD`(SMTP 키)로도 보낼 수 있습니다.
+
+API 키는 터미널에서 직접 넣으세요. 채팅이나 저장소에 붙여 넣지 않습니다.
+
+```bash
+railway variable set --service mktly-web "MAIL_MAILER=brevo" "BREVO_API_KEY=<API 키>"
+```
 
 `MKTLY_MAIL_DAILY_LIMIT`을 설정하면 오늘 남은 한도보다 대상이 많은 캠페인은 **발송 시작 전에** 막히고, 작성 화면에 남은 한도가 표시됩니다. 설정하지 않으면 Brevo 쪽에서 한도를 넘는 순간 발송이 실패합니다.
 

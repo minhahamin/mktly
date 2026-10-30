@@ -45,8 +45,16 @@ return [
             'port' => env('MAIL_PORT', 2525),
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
-            'timeout' => null,
+            // 메일 서버가 응답하지 않을 때 요청이 PHP 실행 제한(30초)에 걸려 500이 되지 않도록 짧게 둔다.
+            'timeout' => (int) env('MAIL_TIMEOUT', 10),
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+        ],
+
+        // Brevo HTTP API(443). Railway Hobby 요금제처럼 SMTP 포트가 막힌 곳에서 쓴다. AppServiceProvider에서 등록한다.
+        'brevo' => [
+            'transport' => 'brevo',
+            'key' => env('BREVO_API_KEY'),
+            'timeout' => (int) env('MAIL_TIMEOUT', 10),
         ],
 
         'ses' => [
