@@ -56,6 +56,13 @@ PHP(Laravel)가 화면과 비즈니스 로직을, Python(FastAPI)이 AI 기능�
     <td><img src="docs/screenshots/contacts.jpg" alt="고객 목록"><br><sub>고객 목록과 이탈 위험 등급</sub></td>
     <td><img src="docs/screenshots/settings.jpg" alt="설정"><br><sub>워크스페이스와 멤버 관리</sub></td>
   </tr>
+  <tr>
+    <td><img src="docs/screenshots/cardnews-create.jpg" alt="카드뉴스 만들기"><br><sub>카드뉴스 만들기: 문구 초안을 장별로 다듬기 (키가 없으면 샘플 결과)</sub></td>
+    <td><img src="docs/screenshots/cardnews-list.jpg" alt="이미지 목록"><br><sub>만든 이미지 세트 목록과 ZIP 다운로드</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/cardnews-set.jpg" alt="카드뉴스 결과"><br><sub>렌더 결과 (템플릿 배경, 글자는 서버가 Pretendard로 그림)</sub></td>
+  </tr>
 </table>
 
 ## 아키텍처
